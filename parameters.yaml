@@ -1,0 +1,125 @@
+# =============================================================================
+# parameters.yaml — Centralised model parameters and experiment configuration
+#
+# This file mirrors Table 1 and Section 2 of Lehodey et al. (2026, GMD).
+# All notebooks and scripts in this repository load values from here to avoid
+# duplication and to keep the manuscript and code in sync.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Reference biological parameters (Manuscript Table 1)
+# -----------------------------------------------------------------------------
+model_parameters:
+  reference:
+    energy_transfert:           0.1668   # E,        dimensionless, transfer efficiency NPP -> zooplankton production
+    tr_0:                      10.38     # tau_r0,   day, maximum recruitment age at T_ref
+    gamma_tr:                  -0.11     # gamma_tr, °C^-1, thermal sensitivity (recruitment)
+    lambda_temperature_0:       0.006667 # lambda_0, day^-1, mortality rate at T_ref (= 1/150)
+    gamma_lambda_temperature:   0.15     # gamma_l,  °C^-1, thermal sensitivity (mortality)
+
+  # Optimisation bounds (Manuscript Table 1, "Range" column)
+  bounds:
+    energy_transfert:           [0.0,    0.5]
+    tr_0:                       [0.0,  100.0]
+    gamma_tr:                  [-0.5,    0.0]
+    lambda_temperature_0:       [0.002,   0.25]    # [1/500, 1/4]
+    gamma_lambda_temperature:   [0.0,    0.5]
+
+  # Reference temperature for thermal-sensitivity equations
+  T_ref:                       0.0      # °C (Appendix A, eq. A.3)
+
+# -----------------------------------------------------------------------------
+# Forcing and time coverage (Manuscript Section 2.3)
+# -----------------------------------------------------------------------------
+forcing:
+  cmems_dataset_doi: "10.48670/moi-00020"
+  cmems_product:     "GLOBAL_MULTIYEAR_BGC_001_033"
+  cmems_datasets:
+    fphy: "cmems_mod_glo_bgc_my_0.083deg-lmtl-Fphy_P1D-i"
+    bio:  "cmems_mod_glo_bgc_my_0.083deg-lmtl_P1D-i"
+  epi_depth_index: 1            # epipelagic layer
+  spatial_resolution_deg: 1.0   # regridded from native 1/12°
+  time_range:
+    start: "1998-01-01"
+    end:   "2019-12-31"
+  spin_up_years: 2              # first 2 years excluded from analysis
+
+# -----------------------------------------------------------------------------
+# Sobol sensitivity analysis (Manuscript Section 2.4.3)
+#
+# Two run modes:
+#   - "test":       192 simulations, ~30 s — validates the pipeline end-to-end
+#   - "production": 1,190,700 simulations, ~1.5-4 h — reproduces published Figure 5
+# -----------------------------------------------------------------------------
+sobol:
+  mode: test
+  parameters_ordered:
+    - energy_transfert
+    - tr_0
+    - gamma_tr
+    - lambda_temperature_0
+    - gamma_lambda_temperature
+  # Parameter bounds used to generate the published Figure 5.
+  # These are *wider* than the optimisation bounds reported in Table 1 of the
+  # manuscript (which apply to the GA twin experiments only); the Sobol
+  # analysis explores a larger envelope to characterise the model's response.
+  bounds:
+    energy_transfert:         [0.0, 1.0]
+    tr_0:                     [1.0e-15, 500.0]
+    gamma_tr:                 [-1.0, -1.0e-15]
+    lambda_temperature_0:     [1.0e-15, 0.02]   # tightened (was 0.1) to keep CFL stable at HOT
+    gamma_lambda_temperature: [1.0e-15, 0.15]   # tightened (was 1.0) to avoid CFL instability at warm stations
+  metrics: [mean, variance, argmax]
+  analysis_period:
+    spin_up_start: "2005-01-01"
+    start:         "2006-01-01"
+    end:           "2007-01-01"
+  test:
+    n_samples_per_dim: 1024      # 1024 * (2*P+2) = 12,288 simulations (~8 min)
+  production:
+    n_samples_per_dim: 99225     # 99225 * (2*P+2) = 1,190,700 simulations
+
+# -----------------------------------------------------------------------------
+# Genetic algorithm — twin experiments (Manuscript Section 2.4.4)
+#
+# Two run modes:
+#   - "test":       64 simulations per experiment, ~1 min total — pipeline check
+#   - "production": 204,336 simulations per experiment, ~7-14 h on cluster
+# -----------------------------------------------------------------------------
+genetic_algorithm:
+  mode: test
+  tournament_size: 3
+  cxpb: 0.9                      # two-point crossover probability
+  # 7 experiments: 6 single-station + MERGED (joint over all stations)
+  experiments: [BARENTS, PAPA, Bay_of_Biscay, BATS, Canaries, HOT, MERGED]
+  test:
+    n_sobol_init: 64
+    n_generations: 9
+    population_size: 64          # 64 + 9*64 = 640 simulations per experiment (~2 min)
+  production:
+    n_sobol_init: 14336
+    n_generations: 19
+    population_size: 10000       # 14336 + 19*10000 = 204336 simulations per experiment
+
+# -----------------------------------------------------------------------------
+# Global simulation — transport-impact comparison (Manuscript Section 2.4.2)
+#
+# Two run modes:
+#   - "test":       3-year window (1998-2000, 2 spin-up + 1 analysis), ~30 s
+#   - "production": 22-year window (1998-2019, 2 spin-up + 20 analysis), ~4-5 min
+# -----------------------------------------------------------------------------
+global_simulation:
+  mode: test
+  start_date:     "1998-01-01"
+  spin_up_end:    "1999-12-31"     # analysis starts the next day (2000-01-01)
+  test:
+    end_date:     "2003-12-31"     # 4 years of analysis (~2 min)
+  production:
+    end_date:     "2019-12-31"     # 20 years of analysis
+
+# -----------------------------------------------------------------------------
+# Theoretical validation benchmark (Manuscript Section 2.4.1)
+# -----------------------------------------------------------------------------
+theoretical_benchmark:
+  temperatures_celsius: [0, 10, 20, 30]
+  npp_constant: 300             # mg C / m^2 / day

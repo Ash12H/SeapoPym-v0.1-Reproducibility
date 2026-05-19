@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this reproducibility deposit, please cite the original paper."
+title: "SeapoPym v0.1: Implementation of the SEAPODYM low and mid trophic levels in Python with a flexible optimisation framework — Reproducibility deposit"
+authors:
+  - family-names: Lehodey
+    given-names: Jules Victor
+    email: lehodey.jules@gmail.com
+    affiliation: "LEGOS / MARBEC / Université de la Nouvelle-Calédonie"
+  - family-names: Mignot
+    given-names: Alexandre
+    affiliation: "Mercator Ocean International"
+  - family-names: Ganachaud
+    given-names: Alexandre
+    affiliation: "LEGOS / MARBEC"
+  - family-names: Albernhe
+    given-names: Sarah
+    affiliation: "Mercator Ocean International"
+  - family-names: Nicol
+    given-names: Simon
+    affiliation: "Pacific Community (SPC)"
+version: "0.1.0"
+license: GPL-3.0-or-later
+type: software
+url: "https://github.com/SeapoPym/seapopym"
+repository-code: "https://github.com/SeapoPym/seapopym"
+preferred-citation:
+  type: article
+  title: "SeapoPym v0.1: Implementation of the SEAPODYM low and mid trophic levels in Python with a flexible optimisation framework"
+  journal: "Geoscientific Model Development"
+  year: 2026
+  authors:
+    - family-names: Lehodey
+      given-names: Jules Victor
+    - family-names: Mignot
+      given-names: Alexandre
+    - family-names: Ganachaud
+      given-names: Alexandre
+    - family-names: Albernhe
+      given-names: Sarah
+    - family-names: Nicol
+      given-names: Simon
+  doi: "10.5194/egusphere-2026-711"   # update with final GMD DOI once accepted

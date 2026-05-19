@@ -1,0 +1,8 @@
+{
+    "BARENTS":       {"lat": 75.0, "lon":   40.0, "label": "BARENTS"},
+    "PAPA":          {"lat": 50.0, "lon": -132.0, "label": "PAPA"},
+    "Bay_of_Biscay": {"lat": 45.5, "lon":   -4.0, "label": "Bay of Biscay"},
+    "BATS":          {"lat": 32.0, "lon":  -64.0, "label": "BATS"},
+    "Canaries":      {"lat": 30.0, "lon":  -13.0, "label": "Canary"},
+    "HOT":           {"lat": 23.0, "lon": -158.0, "label": "HOT"}
+}

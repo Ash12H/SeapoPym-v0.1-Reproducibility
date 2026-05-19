@@ -1,0 +1,38 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (regenerated from CMEMS + scripts)
+*.zarr
+*.nc
+*.parquet
+data/stations.zarr/
+data/cache/
+
+# Generated figures (regenerated from notebooks)
+figures/*.png
+figures/*.pdf
+!figures/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# uv / venv
+.venv/
+.python-version
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

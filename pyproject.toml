@@ -1,0 +1,79 @@
+[project]
+name = "seapopym-v0.1-reproducibility"
+version = "0.1.0"
+description = "Reproducibility deposit for Lehodey et al. (2026, GMD): SeapoPym v0.1"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.12,<3.13"
+authors = [
+    { name = "Jules Victor Lehodey", email = "lehodey.jules@gmail.com" },
+    { name = "Alexandre Mignot" },
+    { name = "Alexandre Ganachaud" },
+    { name = "Sarah Albernhe" },
+    { name = "Simon Nicol" },
+]
+keywords = ["seapodym", "zooplankton", "biogeochemistry", "marine-ecosystem", "genetic-algorithm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+# Direct dependencies for the notebooks and scripts in THIS repository.
+# Transitive dependencies (xarray, dask, numpy, numba, pint, pyarrow, netcdf4,
+# deap, salib, scipy, scikit-learn, pandera, …) are pulled in by `seapopym`
+# and `seapopym-optimization` and are not listed here to avoid version conflicts.
+dependencies = [
+    # SeapoPym packages — pinned to the v0.1 tag (commit 9022cef) used in the paper
+    "seapopym",
+    "seapopym-optimization",
+
+    # CMEMS Marine data download
+    "copernicusmarine>=2.0",
+
+    # Plotting (not pulled by seapopym)
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "cartopy>=0.24",
+
+    # Zarr (used directly in notebooks for I/O of intermediate states)
+    "zarr>=3.0",
+
+    # Bokeh (dashboard for Dask, used in notebooks)
+    "bokeh>=3.6",
+
+    # YAML config loader (for parameters.yaml)
+    "pyyaml>=6.0",
+
+    # Notebook runtime
+    "jupyter>=1.1",
+    "ipykernel>=6.29",
+
+    # Pandas (used in notebooks for tabular post-processing)
+    "pandas>=2.2",
+]
+
+[tool.uv]
+# This is a reproducibility env, not a redistributable library.
+package = false
+
+[tool.uv.sources]
+# SeapoPym is a uv workspace monorepo; install the two sub-packages from their
+# subdirectories at the v0.1 tag (DOI: 10.5281/zenodo.18348596).
+seapopym = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym" }
+seapopym-optimization = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym-optimization" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+ignore = ["E501"]  # line length is enforced by formatter
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
