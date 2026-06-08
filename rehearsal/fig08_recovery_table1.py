@@ -8,7 +8,7 @@ Reads the best individual of each logbook in rehearsal/logbooks/ and produces:
 Bounds and reference are read from parameters.yaml (NOT hard-coded) so Fig 7B is
 correct for the current optimisation bounds. Renders whatever logbooks are present.
 
-Output: rehearsal/figures/Figure_7A.png, Figure_7B.png, rehearsal/logbooks/table1_optimised.csv
+Output: rehearsal/figures/Figure_8_recovery_error.png, Figure_8.png, rehearsal/logbooks/table1_optimised.csv
 """
 from pathlib import Path
 
@@ -93,8 +93,8 @@ handles = [Line2D([0], [0], marker="*" if e == "MERGED" else "o", color="w", mar
 fig.legend(handles=handles, loc="lower center", ncol=min(len(EXP), 7), frameon=False,
            bbox_to_anchor=(0.5, -0.02), fontsize=9)
 plt.tight_layout(rect=[0, 0.05, 1, 1])
-fig.savefig(FIG / "Figure_7A.png", dpi=200, bbox_inches="tight", facecolor="white")
-print("wrote", FIG / "Figure_7A.png")
+fig.savefig(FIG / "Figure_8_recovery_error.png", dpi=200, bbox_inches="tight", facecolor="white")
+print("wrote", FIG / "Figure_8_recovery_error.png")
 
 # ---------------- Figure 7B: value within (current) bounds ----------------
 fig, axes = plt.subplots(1, 5, figsize=(13, 4.6), dpi=200)
@@ -116,8 +116,8 @@ fig.legend(handles=handles2, loc="lower center", ncol=min(len(EXP) + 1, 8), fram
            bbox_to_anchor=(0.5, -0.05), fontsize=9)
 fig.suptitle("Twin experiments — best-individual parameter values (SBX, pop 256)", fontweight="bold", fontsize=11)
 plt.tight_layout(rect=[0, 0.04, 1, 0.96])
-fig.savefig(FIG / "Figure_7B.png", dpi=200, bbox_inches="tight", facecolor="white")
-print("wrote", FIG / "Figure_7B.png")
+fig.savefig(FIG / "Figure_8.png", dpi=200, bbox_inches="tight", facecolor="white")
+print("wrote", FIG / "Figure_8.png")
 
 # ---------------- Table 1 optimised columns ----------------
 rows = [{"experiment": "REFERENCE", **{p: REF[p] for p in PARAM_ORDER}}]

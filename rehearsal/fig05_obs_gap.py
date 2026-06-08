@@ -89,6 +89,6 @@ legend_handles = [
 axes[1].legend(handles=legend_handles, loc="upper right", fontsize=8, framealpha=0.9)
 fig.suptitle("HOT / BATS — model vs in-situ observations (dotted = total mean)", fontsize=13, fontweight="bold")
 plt.tight_layout()
-out = FIG / "fig_X_obs_gap.png"
+out = FIG / "Figure_5.png"
 fig.savefig(out, dpi=190, bbox_inches="tight", facecolor="white")
 print("wrote", out)

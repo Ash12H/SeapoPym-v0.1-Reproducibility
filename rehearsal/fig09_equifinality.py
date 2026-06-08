@@ -131,6 +131,6 @@ for ax, (sid, lat, label) in zip(axes.flat, STATIONS):
 fig.suptitle("Target vs best-fit biomass (single-station and MERGED) — SBX/pop256 — zoom 2015-2019",
              fontweight="bold", fontsize=13)
 plt.tight_layout(rect=[0, 0, 1, 0.97])
-out = FIG / "fig_equifinality.png"
+out = FIG / "Figure_9.png"
 fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
 print(f"\nSaved {out}")

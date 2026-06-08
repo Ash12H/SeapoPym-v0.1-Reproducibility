@@ -48,7 +48,7 @@ ax.set_title("GA convergence — best-so-far cost per generation\n(SBX, pop 256,
 ax.grid(True, alpha=0.3)
 ax.legend(fontsize=9)
 plt.tight_layout()
-out = FIG / "fig6_convergence.png"
+out = FIG / "Figure_7.png"
 fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
 print("wrote", out)
 
