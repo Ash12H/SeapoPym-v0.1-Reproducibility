@@ -20,10 +20,10 @@ model_parameters:
   # Optimisation bounds (Manuscript Table 1, "Range" column)
   bounds:
     energy_transfert:           [0.0,    0.5]
-    tr_0:                       [0.0,  100.0]
-    gamma_tr:                  [-0.5,    0.0]
-    lambda_temperature_0:       [0.002,   0.25]    # [1/500, 1/4]
-    gamma_lambda_temperature:   [0.0,    0.5]
+    tr_0:                       [0.001, 300.0]    # upper widened 100 -> 300 (saturated)
+    gamma_tr:                  [-0.25,  -0.001]   # range tightened toward 0 (kept negative; eps on the 0 side)
+    lambda_temperature_0:       [0.001,   0.1]    # lifespan 10-1000 d (ref 1/150); upper 0.5->0.1 (0.5/d = 2-d lifespan, absurd)
+    gamma_lambda_temperature:   [0.001,   0.25]   # symmetric magnitude with gamma_tr [-0.25,-0.001]
 
   # Reference temperature for thermal-sensitivity equations
   T_ref:                       0.0      # °C (Appendix A, eq. A.3)
@@ -71,7 +71,7 @@ sobol:
     gamma_lambda_temperature: [1.0e-15, 0.15]   # tightened (was 1.0) to avoid CFL instability at warm stations
   metrics: [mean, variance, argmax]
   analysis_period:
-    spin_up_start: "2005-01-01"
+    spin_up_start: "2004-01-01"   # 2-year spin-up (was 2005 = 1 year); cold/low-λ cases need >1 yr to equilibrate
     start:         "2006-01-01"
     end:           "2007-01-01"
   test:
@@ -87,7 +87,7 @@ sobol:
 #   - "production": 204,336 simulations per experiment, ~7-14 h on cluster
 # -----------------------------------------------------------------------------
 genetic_algorithm:
-  mode: test
+  mode: production
   tournament_size: 3
   cxpb: 0.9                      # two-point crossover probability
   # 7 experiments: 6 single-station + MERGED (joint over all stations)
@@ -100,6 +100,10 @@ genetic_algorithm:
     n_sobol_init: 14336
     n_generations: 19
     population_size: 10000       # 14336 + 19*10000 = 204336 simulations per experiment
+  validation:
+    n_sobol_init: 256
+    n_generations: 100
+    population_size: 128         # small-pop/high-gen test: 256 + 100*128 = 13056 sims per experiment
 
 # -----------------------------------------------------------------------------
 # Global simulation — transport-impact comparison (Manuscript Section 2.4.2)

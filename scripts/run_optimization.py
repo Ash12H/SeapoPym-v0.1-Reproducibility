@@ -37,7 +37,12 @@ from seapopym_optimization.algorithm.genetic_algorithm import GeneticAlgorithmPa
 from seapopym_optimization.algorithm.genetic_algorithm.factory import GeneticAlgorithmFactory
 from seapopym_optimization.algorithm.genetic_algorithm.logbook import Logbook
 from seapopym_optimization.configuration_generator import NoTransportConfigurationGenerator
-from seapopym_optimization.cost_function import CostFunction, TimeSeriesScoreProcessor, rmse_comparator
+from seapopym_optimization.cost_function import (
+    CostFunction,
+    TimeSeriesScoreProcessor,
+    nrmse_std_comparator,
+    rmse_comparator,  # noqa: F401  (kept for reference; NRMSE is the published metric)
+)
 from seapopym_optimization.functional_group import (
     FunctionalGroupSet,
     NoTransportFunctionalGroup,
@@ -82,9 +87,14 @@ def _build_grid(stations_zarr: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray, 
     return temperature, npp, y_values
 
 
-def _build_observations(station: str, stations_meta: dict) -> list[TimeSeriesObservation]:
-    """Slice the pseudo-observations dataset into TimeSeriesObservation list."""
-    pseudo = xr.open_zarr(DATA_DIR / "pseudo_observations.zarr")["observed_biomass"]
+def _build_observations(station: str, stations_meta: dict, obs_file: str = "pseudo_observations.zarr") -> list[TimeSeriesObservation]:
+    """Slice the observation dataset into a TimeSeriesObservation list.
+
+    `obs_file` selects which observation zarr to fit against (default: the
+    synthetic twin-experiment pseudo-observations). Pass e.g.
+    `hot_real_observations.zarr` to optimise against real in-situ data.
+    """
+    pseudo = xr.open_zarr(DATA_DIR / obs_file)["observed_biomass"]
 
     def _slice(sid: str) -> TimeSeriesObservation:
         lat = stations_meta[sid]["lat"]
@@ -126,8 +136,13 @@ def _build_functional_groups(bounds: dict) -> list[NoTransportFunctionalGroup]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", maxsplit=1)[0])
     parser.add_argument("--station", required=True, help="Station name (BARENTS, PAPA, Bay_of_Biscay, BATS, Canaries, HOT, MERGED)")
-    parser.add_argument("--mode", choices=["test", "production"], default=None,
+    parser.add_argument("--mode", choices=["test", "production", "validation"], default=None,
                         help="Override parameters.yaml mode (default: use whatever is in parameters.yaml).")
+    parser.add_argument("--workers", type=int, default=2, help="Number of Dask workers (default: 2).")
+    parser.add_argument("--memory-limit", default="8GB", help="Dask memory limit per worker (default: 8GB).")
+    parser.add_argument("--obs-file", default="pseudo_observations.zarr",
+                        help="Observation zarr in data/ to fit against (default: synthetic pseudo-observations; "
+                             "e.g. hot_real_observations.zarr for real in-situ data).")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -142,7 +157,10 @@ def main() -> None:
     mode = args.mode or GA["mode"]
     mode_params = GA[mode]
 
-    output_path = DATA_DIR / f"ga_logbook_{args.station}_{mode}.parquet"
+    # Tag the logbook with the observation source when it is not the default
+    # synthetic pseudo-observations, so real-data runs don't overwrite twin runs.
+    obs_tag = "" if args.obs_file == "pseudo_observations.zarr" else "_" + Path(args.obs_file).stem.replace("_observations", "").replace("_", "")
+    output_path = DATA_DIR / f"ga_logbook_{args.station}_{mode}{obs_tag}.parquet"
     if output_path.exists():
         log.info("Removing stale logbook: %s", output_path)
         output_path.unlink()
@@ -161,7 +179,7 @@ def main() -> None:
         initial_condition_production=ForcingUnit(forcing=ic.preproduction),
     )
 
-    observations = _build_observations(args.station, STATIONS)
+    observations = _build_observations(args.station, STATIONS, args.obs_file)
     weights = tuple(-1.0 for _ in observations)
     fg_set = FunctionalGroupSet(_build_functional_groups(BOUNDS))
 
@@ -171,7 +189,7 @@ def main() -> None:
         fitness_names=[obs.name for obs in observations],
     )
 
-    client = Client(n_workers=2, threads_per_worker=1, memory_limit="8GB")
+    client = Client(n_workers=args.workers, threads_per_worker=1, memory_limit=args.memory_limit)
     log.info("Dask dashboard: %s", client.dashboard_link)
     try:
         cost_function = CostFunction(
@@ -180,7 +198,7 @@ def main() -> None:
             forcing=forcing,
             kernel=KernelParameter(),
             observations=observations,
-            processor=TimeSeriesScoreProcessor(comparator=rmse_comparator),
+            processor=TimeSeriesScoreProcessor(comparator=nrmse_std_comparator),
         )
 
         ga_params = GeneticAlgorithmParameters(
