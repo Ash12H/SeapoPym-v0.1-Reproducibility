@@ -76,7 +76,7 @@ print("stations (cold->warm):", STATIONS)
 
 
 def analyze(y: np.ndarray) -> dict:
-    out = sobol.analyze(PROBLEM, np.asarray(y, float), calc_second_order=CALC2, print_to_console=False)
+    out = sobol.analyze(PROBLEM, np.asarray(y, float), calc_second_order=CALC2, print_to_console=False, seed=0)
     return {"S1": out["S1"], "S1_conf": out["S1_conf"], "ST": out["ST"], "ST_conf": out["ST_conf"]}
 
 

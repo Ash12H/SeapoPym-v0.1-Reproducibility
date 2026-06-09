@@ -41,7 +41,8 @@ RAW = ["mean", "variance", "argmax"]           # kept for context, NOT used to g
 
 
 def analyze(problem, calc2, y):
-    o = sobol.analyze(problem, np.asarray(y, float), calc_second_order=calc2, print_to_console=False)
+    # seed the bootstrap so the CI half-widths (hence the convergence decision) are reproducible
+    o = sobol.analyze(problem, np.asarray(y, float), calc_second_order=calc2, print_to_console=False, seed=0)
     return {"S1": o["S1"], "S1_conf": o["S1_conf"], "ST": o["ST"], "ST_conf": o["ST_conf"]}
 
 

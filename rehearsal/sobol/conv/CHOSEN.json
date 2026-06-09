@@ -6,5 +6,6 @@
   "indices_table": "rehearsal/sobol/conv/N8192/sobol_indices.csv",
   "ci_threshold": 0.05,
   "stab_threshold": 0.05,
-  "criterion": "Sarrazin et al. 2016 (robust metrics)"
+  "criterion": "Sarrazin et al. 2016 (robust metrics, seeded bootstrap)",
+  "model": "Gillooly-corrected light model"
 }

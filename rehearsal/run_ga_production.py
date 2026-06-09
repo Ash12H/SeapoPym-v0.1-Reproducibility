@@ -171,7 +171,7 @@ def sobol_init_logbook(fg_set, pop, fitness_names):
     )
 
 
-def run_one(experiment, params, stations_meta, forcing, client):
+def run_one(experiment, params, stations_meta, forcing, client, biomass_solver="implicit"):
     bounds = params["model_parameters"]["bounds"]
     observations = build_observations(experiment, stations_meta)
     fg_set = FunctionalGroupSet(functional_groups(bounds))
@@ -181,7 +181,7 @@ def run_one(experiment, params, stations_meta, forcing, client):
         out.unlink()
     cost = CostFunction(
         configuration_generator=NoTransportConfigurationGenerator(model_class=NoTransportSpaceOptimizedLightModel),
-        functional_groups=fg_set, forcing=forcing, kernel=KernelParameter(),
+        functional_groups=fg_set, forcing=forcing, kernel=KernelParameter(biomass_solver=biomass_solver),
         observations=observations, processor=TimeSeriesScoreProcessor(comparator=nrmse_std_comparator),
     )
     ga_params = GeneticAlgorithmParameters(
@@ -207,6 +207,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--experiments", default=",".join(EXPERIMENTS),
                     help="comma-separated subset (default: all 7)")
+    ap.add_argument("--mode", choices=["test", "validation", "production"], default="production",
+                    help="GA pop/ngen-cap from parameters.yaml genetic_algorithm[mode]")
+    ap.add_argument("--biomass-solver", choices=["explicit", "implicit"], default="implicit",
+                    help="biomass time scheme used by the GA model (default: implicit)")
+    ap.add_argument("--no-resume", action="store_true",
+                    help="recompute every experiment even if a .done completion marker exists")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--memory-limit", default="4GB")
     args = ap.parse_args()
@@ -219,15 +225,30 @@ def main():
     with open(DATA_DIR / "stations_coords.json") as f:
         stations_meta = json.load(f)
 
+    # pop / generation cap come from the selected mode (test/validation/production)
+    CFG["pop"] = params["genetic_algorithm"][args.mode]["population_size"]
+    CFG["ngen_cap"] = params["genetic_algorithm"][args.mode]["n_generations"]
+
     forcing = build_forcing()
     client = Client(n_workers=args.workers, threads_per_worker=1, memory_limit=args.memory_limit)
     print(f"Dask dashboard: {client.dashboard_link}", flush=True)
-    print(f"Config: {CFG}  | experiments={experiments}", flush=True)
+    print(f"mode={args.mode} solver={args.biomass_solver} | {CFG} | experiments={experiments}", flush=True)
 
     summary = []
     try:
         for exp in experiments:  # MERGED is last in the default order
-            summary.append(run_one(exp, params, stations_meta, forcing, client))
+            out = OUT_DIR / f"ga_logbook_{exp}.parquet"
+            done = OUT_DIR / f"ga_logbook_{exp}.done"
+            # resume only skips an experiment already completed in THIS mode (marker stores the mode)
+            if not args.no_resume and out.exists() and done.exists() and done.read_text().strip() == args.mode:
+                d = pd.read_parquet(out)
+                best = d.loc[d[WF].idxmax(), "Parametre"].to_dict()
+                print(f"  -> {exp:14s} | already complete ({args.mode}), skipping (NRMSE={float(-d[WF].max()):.5g})", flush=True)
+                summary.append({"experiment": exp, "stop_gen": -1, "best_nrmse": float(-d[WF].max()),
+                                "minutes": 0.0, **{k: float(best[k]) for k in PARAM_KEYS}})
+                continue
+            summary.append(run_one(exp, params, stations_meta, forcing, client, args.biomass_solver))
+            done.write_text(args.mode)  # mark this logbook as completed in `mode`
     finally:
         client.close()
 

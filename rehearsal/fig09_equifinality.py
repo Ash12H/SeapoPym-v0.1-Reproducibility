@@ -90,7 +90,7 @@ def run_model(p):
             temperature=ForcingUnit(forcing=temperature), primary_production=ForcingUnit(forcing=npp),
             initial_condition_biomass=ForcingUnit(forcing=ic.biomass),
             initial_condition_production=ForcingUnit(forcing=ic.preproduction)),
-        functional_group=fg, kernel=KernelParameter())
+        functional_group=fg, kernel=KernelParameter(biomass_solver="implicit"))
     with NoTransportSpaceOptimizedLightModel.from_configuration(configuration=config) as model:
         model.run()
         model.state.compute()

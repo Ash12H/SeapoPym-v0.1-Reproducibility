@@ -36,6 +36,7 @@ __pycache__/
 
 # Logs
 *.log
+*.done
 
 # Local review fork of the framework (a separate git repo, cloned alongside;
 # referenced by pyproject's [tool.uv.sources] while the PR is un-merged)
