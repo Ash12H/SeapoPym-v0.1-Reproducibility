@@ -61,10 +61,14 @@ dependencies = [
 package = false
 
 [tool.uv.sources]
-# SeapoPym is a uv workspace monorepo; install the two sub-packages from their
-# subdirectories at the v0.1 tag (DOI: 10.5281/zenodo.18348596).
-seapopym = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym" }
-seapopym-optimization = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym-optimization" }
+# SeapoPym is a uv workspace monorepo. INTERIM: install from the local review
+# fork (editable) while the GA-calibration changes (SBX, early stopping,
+# plain-Sobol init) are tested; once the PR is merged upstream, revert to the
+# official tag, e.g.:
+#   seapopym = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym" }
+#   seapopym-optimization = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym-optimization" }
+seapopym = { path = "dependencies/seapopym-review/packages/seapopym", editable = true }
+seapopym-optimization = { path = "dependencies/seapopym-review/packages/seapopym-optimization", editable = true }
 
 [tool.ruff]
 line-length = 120

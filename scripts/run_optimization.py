@@ -185,8 +185,9 @@ def main() -> None:
 
     logbook = Logbook.from_sobol_samples(
         functional_group_parameters=fg_set,
-        sample_number=mode_params["n_sobol_init"],
+        sample_number=mode_params["population_size"],
         fitness_names=[obs.name for obs in observations],
+        saltelli=False,  # plain Sobol sequence of exactly population_size points (= initial population)
     )
 
     client = Client(n_workers=args.workers, threads_per_worker=1, memory_limit=args.memory_limit)
@@ -209,6 +210,12 @@ def main() -> None:
             NGEN=mode_params["n_generations"],
             POP_SIZE=mode_params["population_size"],
             cost_function_weight=weights,
+            TOURNSIZE=GA["tournament_size"],
+            CX_METHOD=GA["cx_method"],
+            CX_ETA=GA["cx_eta"],
+            PATIENCE=GA["patience"],
+            TOLERANCE=GA["tolerance"],
+            MIN_GEN=GA["min_gen"],
         )
 
         ga = GeneticAlgorithmFactory.create_distributed(
@@ -219,9 +226,9 @@ def main() -> None:
             save=output_path,
         )
 
-        log.info("Station=%s mode=%s | Sobol=%d, NGEN=%d, POP=%d",
-                 args.station, mode,
-                 mode_params["n_sobol_init"], mode_params["n_generations"], mode_params["population_size"])
+        log.info("Station=%s mode=%s | crossover=%s POP=%d NGEN(cap)=%d patience=%s",
+                 args.station, mode, GA["cx_method"],
+                 mode_params["population_size"], mode_params["n_generations"], GA["patience"])
         ga.optimize()
     finally:
         client.close()

@@ -88,22 +88,28 @@ sobol:
 # -----------------------------------------------------------------------------
 genetic_algorithm:
   mode: production
-  tournament_size: 3
-  cxpb: 0.9                      # two-point crossover probability
+  tournament_size: 2             # binary tournament (Deb et al. 2002)
+  cxpb: 0.9                      # crossover probability
+  cx_method: sbx                 # simulated binary crossover (real-coded)
+  cx_eta: 15.0                   # SBX distribution index (eta_c)
+  # Early stopping on the best-so-far NRMSE (replaces a fixed generation cap):
+  # stop after `patience` generations without > `tolerance` relative improvement,
+  # checked from `min_gen` onwards. Initial population = a plain Sobol sequence of
+  # exactly `population_size` points (no member dropped between gen 0 and gen 1).
+  patience: 25
+  tolerance: 1.0e-3
+  min_gen: 20
   # 7 experiments: 6 single-station + MERGED (joint over all stations)
   experiments: [BARENTS, PAPA, Bay_of_Biscay, BATS, Canaries, HOT, MERGED]
   test:
-    n_sobol_init: 64
-    n_generations: 9
-    population_size: 64          # 64 + 9*64 = 640 simulations per experiment (~2 min)
+    n_generations: 50            # cap; early-stopping governs (quick smoke)
+    population_size: 64
   production:
-    n_sobol_init: 14336
-    n_generations: 19
-    population_size: 10000       # 14336 + 19*10000 = 204336 simulations per experiment
+    n_generations: 250           # cap; early-stopping governs
+    population_size: 256
   validation:
-    n_sobol_init: 256
     n_generations: 100
-    population_size: 128         # small-pop/high-gen test: 256 + 100*128 = 13056 sims per experiment
+    population_size: 128
 
 # -----------------------------------------------------------------------------
 # Global simulation — transport-impact comparison (Manuscript Section 2.4.2)
