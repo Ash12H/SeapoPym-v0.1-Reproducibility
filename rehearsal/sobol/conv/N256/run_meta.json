@@ -1,0 +1,48 @@
+{
+  "solver": "implicit",
+  "mode": "test",
+  "bounds_source": "model_parameters.bounds (unified GA bounds)",
+  "names": [
+    "energy_transfert",
+    "tr_0",
+    "gamma_tr",
+    "lambda_temperature_0",
+    "gamma_lambda_temperature"
+  ],
+  "bounds": {
+    "energy_transfert": [
+      0.0,
+      0.5
+    ],
+    "tr_0": [
+      0.001,
+      300.0
+    ],
+    "gamma_tr": [
+      -0.25,
+      -0.001
+    ],
+    "lambda_temperature_0": [
+      0.001,
+      0.1
+    ],
+    "gamma_lambda_temperature": [
+      0.001,
+      0.25
+    ]
+  },
+  "metrics": [
+    "mean",
+    "variance",
+    "argmax"
+  ],
+  "n_samples_per_dim": 256,
+  "calc_second_order": false,
+  "total_samples": 1792,
+  "analysis_period": {
+    "spin_up_start": "2004-01-01",
+    "start": "2006-01-01",
+    "end": "2007-01-01"
+  },
+  "model": "NoTransportSpaceOptimizedLightModel"
+}
