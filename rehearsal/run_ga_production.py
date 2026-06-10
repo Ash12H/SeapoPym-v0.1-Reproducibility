@@ -1,24 +1,35 @@
-"""run_ga_production.py — REHEARSAL of the final twin-experiment GA run.
+"""run_ga_production.py — core GA twin-experiment module + single-run driver.
 
-Isolated dress rehearsal (separate from experiment/ and from the official
-scripts/run_optimization.py). Validates the full production config + figure
-pipeline BEFORE touching any official script or the SeapoPym source.
+Shared library for the rehearsal GA pipeline. The reliability ensemble
+(run_seed_ensemble.py) and the CMA-ES cross-check (run_cmaes_seed_ensemble.py)
+import the helpers defined here (build_forcing, build_observations,
+functional_groups, sobol_init_logbook, optimize_with_early_stopping, CFG, ...).
 
-Frozen production config:
+ONE frozen config (no test/validation/production modes — the 0D twin is already
+fast enough that a single config suffices):
     metric      : NRMSE (nrmse_std)               -- the published, normalised cost
-    crossover   : SBX (cxSimulatedBinaryBounded)  -- canonical NSGA-II partner of
-                  the polynomial-bounded mutation; eta_c = 15
-    population  : 256                              -- better exploration (5 params)
+    crossover   : SBX (cxSimulatedBinaryBounded)  -- canonical partner of the
+                  polynomial-bounded mutation; eta_c = 15
+    population  : 64 (= 2^6)                       -- ~13x the 5 params; keeps the
+                  Sobol gen-0 balance (power of 2). Small enough to run a seeded
+                  ensemble cheaply, large enough for GA diversity (cf. CMA-ES
+                  default lambda=8, too small for a memoryless GA).
     stopping    : patience + tolerance on the best-so-far NRMSE
                   (patience=25, tol=1e-3 = 0.1% relative improvement, min_gen=20,
-                   cap=150 as a backstop)
+                   cap=250 as a backstop)
     experiments : BARENTS, PAPA, Bay_of_Biscay, BATS, Canaries, HOT, MERGED
 
-The 7 logbooks (one per experiment) are the single source of truth: every figure
-(convergence, recovery error, parameter values, equifinality, Table 1) derives
-from them. MERGED runs LAST so a failure there does not lose the single-station runs.
+Dask runs THREADED (processes=False, n_workers=1): a single in-process scheduler
++ a one-shot broadcast scatter. This sidesteps the multiprocessing semaphore leak
+AND the per-process OOM that killed the previous process-based runs ~1 experiment
+in (each 0D eval is tiny, so threading avoids serialisation overhead too).
 
-Run (default = all 7):
+This single-run driver writes the canonical ga_logbook_{exp}.parquet that the
+figures (fig07/08/09) read. The reliability spread across seeds is the job of
+run_seed_ensemble.py, which writes per-seed logbooks to logbooks/seeds/.
+MERGED runs LAST so a failure there does not lose the single-station runs.
+
+Run (default = all 7, seed 0):
     .venv/bin/python rehearsal/run_ga_production.py
     .venv/bin/python rehearsal/run_ga_production.py --experiments BARENTS     # sanity
 """
@@ -28,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import random
 import time
 from pathlib import Path
 
@@ -57,11 +69,11 @@ PARAM_KEYS = ["energy_transfert", "tr_0", "gamma_tr", "lambda_temperature_0", "g
 EXPERIMENTS = ["BARENTS", "PAPA", "Bay_of_Biscay", "BATS", "Canaries", "HOT", "MERGED"]
 WF = ("Weighted_fitness", "Weighted_fitness")
 
-# Frozen production config -----------------------------------------------------
+# Frozen config (single, no modes) ---------------------------------------------
 CFG = dict(
     crossover="sbx", cx_eta=15.0,  # eta_c = 15 (more explorative than Deb's 20; pymoo default)
-    pop=256, ngen_cap=250,         # gen-0 = a balanced Sobol sample of EXACTLY `pop` points
-                                   # (256 = 2^8) -> no member dropped between gen-0 and the
+    pop=64, ngen_cap=250,          # gen-0 = a balanced Sobol sample of EXACTLY `pop` points
+                                   # (64 = 2^6) -> no member dropped between gen-0 and the
                                    # working population. cap = backstop; early-stopping governs.
     patience=25, tol=1e-3, min_gen=20,
 )
@@ -150,18 +162,19 @@ def functional_groups(bounds):
     )]
 
 
-def sobol_init_logbook(fg_set, pop, fitness_names):
+def sobol_init_logbook(fg_set, pop, fitness_names, seed=None):
     """Initial population = EXACTLY `pop` balanced Sobol points scaled to the bounds.
 
     Uses a pure scrambled Sobol sequence (scipy qmc), not SALib's Saltelli N*(D+2)
     design, so gen-0 size == working population (no member dropped at gen-0 -> gen-1).
     pop should be a power of 2 for the Sobol balance property (256 = 2^8, 512 = 2^9).
+    `seed` makes the scramble (hence the whole run) reproducible.
     """
     nb = fg_set.unique_functional_groups_parameters_ordered()
     names = list(nb.keys())
     lo = np.array([p.lower_bound for p in nb.values()])
     hi = np.array([p.upper_bound for p in nb.values()])
-    sampler = qmc.Sobol(d=len(names), scramble=True)
+    sampler = qmc.Sobol(d=len(names), scramble=True, seed=seed)
     m = int(round(np.log2(pop)))
     unit = sampler.random_base2(m=m) if 2 ** m == pop else sampler.random(pop)
     samples = pd.DataFrame(qmc.scale(unit, lo, hi), columns=names)
@@ -171,11 +184,14 @@ def sobol_init_logbook(fg_set, pop, fitness_names):
     )
 
 
-def run_one(experiment, params, stations_meta, forcing, client, biomass_solver="implicit"):
+def run_one(experiment, params, stations_meta, forcing, client, biomass_solver="implicit", seed=None):
+    if seed is not None:  # reproducible run: seed Sobol init scramble + DEAP operators
+        random.seed(seed)
+        np.random.seed(seed)
     bounds = params["model_parameters"]["bounds"]
     observations = build_observations(experiment, stations_meta)
     fg_set = FunctionalGroupSet(functional_groups(bounds))
-    logbook = sobol_init_logbook(fg_set, CFG["pop"], [o.name for o in observations])
+    logbook = sobol_init_logbook(fg_set, CFG["pop"], [o.name for o in observations], seed=seed)
     out = OUT_DIR / f"ga_logbook_{experiment}.parquet"
     if out.exists():
         out.unlink()
@@ -207,14 +223,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--experiments", default=",".join(EXPERIMENTS),
                     help="comma-separated subset (default: all 7)")
-    ap.add_argument("--mode", choices=["test", "validation", "production"], default="production",
-                    help="GA pop/ngen-cap from parameters.yaml genetic_algorithm[mode]")
     ap.add_argument("--biomass-solver", choices=["explicit", "implicit"], default="implicit",
                     help="biomass time scheme used by the GA model (default: implicit)")
+    ap.add_argument("--pop", type=int, default=None, help=f"override population size (default {CFG['pop']})")
+    ap.add_argument("--seed", type=int, default=0,
+                    help="seed the Sobol init scramble + DEAP operators -> reproducible run (default 0)")
     ap.add_argument("--no-resume", action="store_true",
                     help="recompute every experiment even if a .done completion marker exists")
-    ap.add_argument("--workers", type=int, default=8)
-    ap.add_argument("--memory-limit", default="4GB")
+    ap.add_argument("--threads", type=int, default=8,
+                    help="threads for the in-process Dask scheduler (default 8)")
     args = ap.parse_args()
     experiments = [e.strip() for e in args.experiments.split(",") if e.strip()]
 
@@ -225,30 +242,32 @@ def main():
     with open(DATA_DIR / "stations_coords.json") as f:
         stations_meta = json.load(f)
 
-    # pop / generation cap come from the selected mode (test/validation/production)
-    CFG["pop"] = params["genetic_algorithm"][args.mode]["population_size"]
-    CFG["ngen_cap"] = params["genetic_algorithm"][args.mode]["n_generations"]
+    if args.pop is not None:
+        CFG["pop"] = args.pop
+    # completion marker encodes pop+seed, so resume never reuses a logbook from a different config
+    tag = f"pop{CFG['pop']}_seed{args.seed}"
 
     forcing = build_forcing()
-    client = Client(n_workers=args.workers, threads_per_worker=1, memory_limit=args.memory_limit)
+    # Threaded in-process scheduler (see module docstring): no semaphore leak, no per-worker OOM.
+    client = Client(processes=False, n_workers=1, threads_per_worker=args.threads)
     print(f"Dask dashboard: {client.dashboard_link}", flush=True)
-    print(f"mode={args.mode} solver={args.biomass_solver} | {CFG} | experiments={experiments}", flush=True)
+    print(f"tag={tag} solver={args.biomass_solver} | {CFG} | experiments={experiments}", flush=True)
 
     summary = []
     try:
         for exp in experiments:  # MERGED is last in the default order
             out = OUT_DIR / f"ga_logbook_{exp}.parquet"
             done = OUT_DIR / f"ga_logbook_{exp}.done"
-            # resume only skips an experiment already completed in THIS mode (marker stores the mode)
-            if not args.no_resume and out.exists() and done.exists() and done.read_text().strip() == args.mode:
+            # resume only skips an experiment already completed with THIS exact config (marker = tag)
+            if not args.no_resume and out.exists() and done.exists() and done.read_text().strip() == tag:
                 d = pd.read_parquet(out)
                 best = d.loc[d[WF].idxmax(), "Parametre"].to_dict()
-                print(f"  -> {exp:14s} | already complete ({args.mode}), skipping (NRMSE={float(-d[WF].max()):.5g})", flush=True)
+                print(f"  -> {exp:14s} | already complete ({tag}), skipping (NRMSE={float(-d[WF].max()):.5g})", flush=True)
                 summary.append({"experiment": exp, "stop_gen": -1, "best_nrmse": float(-d[WF].max()),
                                 "minutes": 0.0, **{k: float(best[k]) for k in PARAM_KEYS}})
                 continue
-            summary.append(run_one(exp, params, stations_meta, forcing, client, args.biomass_solver))
-            done.write_text(args.mode)  # mark this logbook as completed in `mode`
+            summary.append(run_one(exp, params, stations_meta, forcing, client, args.biomass_solver, args.seed))
+            done.write_text(tag)  # mark this logbook as completed with this exact config
     finally:
         client.close()
 
