@@ -1,0 +1,12 @@
+{
+  "standard_name": "preproduction",
+  "long_name": "pre-production",
+  "description": "The entire population before recruitment, divided into cohorts.",
+  "units": "gram / day / meter ** 2",
+  "_ARRAY_DIMENSIONS": [
+    "functional_group",
+    "Y",
+    "X",
+    "cohort"
+  ]
+}

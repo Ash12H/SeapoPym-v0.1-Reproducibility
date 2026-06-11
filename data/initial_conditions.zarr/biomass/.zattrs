@@ -1,0 +1,10 @@
+{
+  "long_name": "biomass",
+  "units": "gram / meter ** 2",
+  "description": "The biomass of the recruited individuals.",
+  "_ARRAY_DIMENSIONS": [
+    "functional_group",
+    "Y",
+    "X"
+  ]
+}

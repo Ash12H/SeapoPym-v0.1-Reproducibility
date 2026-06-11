@@ -2,17 +2,17 @@
 .DS_Store
 Thumbs.db
 
-# Data files (regenerated from CMEMS + scripts)
+# Data files (heavy global forcing + raw intermediates are regenerated from CMEMS + scripts).
+# Small station inputs under data/ are force-added (git add -f) and tracked despite *.zarr below.
 *.zarr
 *.nc
 *.parquet
-data/stations.zarr/
 data/cache/
 
-# Generated figures (regenerated from notebooks)
-figures/*.png
-figures/*.pdf
-!figures/.gitkeep
+# Heavy intermediates: per-seed logbooks, raw Sobol tree, global sim outputs (regenerated, not committed)
+/results_raw/
+
+# figures/ holds the produced manuscript figures (PDF + PNG) and IS tracked (the deposit shows them).
 
 # Python
 __pycache__/

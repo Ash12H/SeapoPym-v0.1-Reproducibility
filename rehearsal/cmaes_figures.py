@@ -21,9 +21,9 @@ import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
 
-from seapopym_repro import figstyle as fs
+from seapopym_repro import figstyle as fs, paths
 
-CMA = fs.ROOT / "rehearsal" / "cmaes"
+CMA = paths.PRODUCTS   # the committed frozen CSV products (recovery + convergence traces)
 REF, PARAM_ORDER, PLABEL = fs.REF, fs.PARAM_ORDER, fs.PLABEL
 
 

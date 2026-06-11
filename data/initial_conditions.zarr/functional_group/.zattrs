@@ -1,0 +1,9 @@
+{
+  "flag_values": "range(0, 1)",
+  "flag_meanings": "zooplankton",
+  "standard_name": "functional_group",
+  "long_name": "functional group",
+  "_ARRAY_DIMENSIONS": [
+    "functional_group"
+  ]
+}

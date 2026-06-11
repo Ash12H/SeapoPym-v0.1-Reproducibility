@@ -36,7 +36,7 @@ import yaml
 import cma  # pycma — Hansen's reference CMA-ES (standard termination criteria + smooth bound handling)
 from dask.distributed import Client
 
-from seapopym_repro import experiment as ga
+from seapopym_repro import experiment as ga, paths
 from seapopym.configuration.no_transport import KernelParameter
 from seapopym.model.no_transport_model import NoTransportSpaceOptimizedLightModel
 from seapopym_optimization.algorithm.genetic_algorithm.evaluation_strategies import DistributedEvaluation
@@ -46,7 +46,8 @@ from seapopym_optimization.functional_group import FunctionalGroupSet
 
 EXPERIMENTS = ["BARENTS", "PAPA", "Bay_of_Biscay", "BATS", "Canaries", "HOT", "MERGED"]
 SIGMA0, NGEN = 0.30, 1000                            # NGEN is a backstop; convergence is sigma<1e-3 (set by main)
-CMA_DIR = ga.ROOT / "rehearsal" / "cmaes"            # dedicated production-results folder (the 700 optimisations)
+PRODUCTS = paths.PRODUCTS                            # committed CSV products (recovery + traces) the figures read
+CMA_DIR = paths.RESULTS_RAW / "cmaes"                # heavy intermediates (gitignored): per-seed parquets + best copy
 CMA_SEED_DIR = CMA_DIR / "seeds"                     # per-seed trajectories (resume unit), lambda-namespaced
 REF = yaml.safe_load(open(ga.ROOT / "parameters.yaml"))["model_parameters"]["reference"]
 
@@ -129,7 +130,7 @@ def build_convergence_traces(lam, experiments, ndown=120):
             for i in idx:
                 rows.append({"experiment": exp, "seed": seed,
                              "evaluations": int(evals[i]), "best_nrmse": float(best[i])})
-    out = CMA_DIR / f"cmaes_convergence_traces_l{lam}.csv"
+    out = PRODUCTS / f"cmaes_convergence_traces_l{lam}.csv"
     pd.DataFrame(rows).to_csv(out, index=False)
     print(f"froze convergence traces -> {out.name} ({len(rows)} rows, "
           f"{len({(r['experiment'], r['seed']) for r in rows})} traces)", flush=True)
@@ -202,8 +203,9 @@ def main():
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()] if args.seeds else list(range(args.n_seeds))
     lam = args.lam
     NGEN = args.ngen                                          # used by run_seed (module global)
-    results_csv = CMA_DIR / f"cmaes_seed_ensemble_l{lam}.csv"   # in the cmaes/ folder, namespaced by lambda
+    results_csv = PRODUCTS / f"cmaes_seed_ensemble_l{lam}.csv"   # committed product, namespaced by lambda
 
+    PRODUCTS.mkdir(parents=True, exist_ok=True)
     CMA_DIR.mkdir(parents=True, exist_ok=True)
     CMA_SEED_DIR.mkdir(parents=True, exist_ok=True)
     if args.freeze:                                          # rebuild committed products only (no runs)

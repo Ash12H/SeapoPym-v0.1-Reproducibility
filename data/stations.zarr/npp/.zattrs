@@ -1,0 +1,7 @@
+{
+  "coordinates": "station_lat station_lon",
+  "_ARRAY_DIMENSIONS": [
+    "station",
+    "time"
+  ]
+}

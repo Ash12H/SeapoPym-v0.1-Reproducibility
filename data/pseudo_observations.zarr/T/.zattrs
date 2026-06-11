@@ -1,0 +1,10 @@
+{
+  "long_name": "Day length",
+  "standard_name": "time",
+  "axis": "T",
+  "units": "days since 2000-01-01 00:00:00",
+  "calendar": "proleptic_gregorian",
+  "_ARRAY_DIMENSIONS": [
+    "T"
+  ]
+}
