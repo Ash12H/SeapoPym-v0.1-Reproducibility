@@ -30,10 +30,8 @@ from seapopym.configuration.no_transport import (
 )
 from seapopym.model.no_transport_model import NoTransportModel
 
-from seapopym_repro import paths
+from seapopym_repro import figstyle as fs, paths
 ROOT = paths.ROOT
-FIG_DIR = paths.FIGURES
-FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(ROOT / "parameters.yaml") as f:
     PARAMS = yaml.safe_load(f)
@@ -106,7 +104,7 @@ def run_benchmark(t_celsius: float) -> xr.DataArray:
 temperatures = BENCH["temperatures_celsius"]
 biomass = {t: run_benchmark(t) for t in temperatures}
 
-fig, ax = plt.subplots(figsize=(8, 5), dpi=200)
+fig, ax = plt.subplots(figsize=(0.70 * fs.WIDTH_FULL, 0.50 * fs.WIDTH_FULL))
 colors = plt.cm.viridis(np.linspace(0, 0.9, len(temperatures)))
 for t, color in zip(temperatures, colors, strict=True):
     series = biomass[t].isel(X=0, Y=0).squeeze().values
@@ -128,9 +126,8 @@ ax.grid(True, which="both", alpha=0.3, linewidth=0.5)
 # Legend: colour = temperature, dashed = analytical asymptote.
 colour_handles = [Line2D([0], [0], color=c, lw=2, label=f"{t} °C") for t, c in zip(temperatures, colors, strict=True)]
 asymptote_handle = Line2D([0], [0], color="black", lw=1.4, ls="--", label="Analytical asymptote")
-ax.legend(handles=[*colour_handles, asymptote_handle], loc="lower right", ncol=2, frameon=True, fontsize=10)
+ax.legend(handles=[*colour_handles, asymptote_handle], loc="lower right", ncol=2,
+          frameon=True, framealpha=0.95, facecolor="white", edgecolor="0.7")
 
-plt.tight_layout()
-out = FIG_DIR / "Figure_3.png"
-fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-print(f"Saved {out}")
+fig.tight_layout()
+fs.save(fig, "Figure_3", subdir=None)
