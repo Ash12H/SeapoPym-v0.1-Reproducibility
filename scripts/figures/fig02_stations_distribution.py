@@ -88,7 +88,11 @@ ax.set_xlim(x_min, x_max)
 ax.set_ylim(y_min, y_max)
 ax.grid(axis="y", linestyle="--", alpha=0.3, linewidth=0.5)
 ax.set_axisbelow(True)
-ax.legend(handles=handles, loc="upper right", framealpha=0.95, ncol=1)
+# force a frame here (figstyle disables it globally): the legend sits over the scatter, so it needs
+# an opaque white background to stay readable
+leg = ax.legend(handles=handles, loc="upper right", ncol=1, frameon=True, framealpha=0.95,
+                facecolor="white", edgecolor="0.7", fancybox=False)
+leg.set_zorder(10)
 
 fig.tight_layout()
 fs.save(fig, "Figure_2", subdir=None)
