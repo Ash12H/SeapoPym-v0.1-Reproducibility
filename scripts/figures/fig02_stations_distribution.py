@@ -12,7 +12,6 @@ Run    : .venv/bin/python scripts/figures/fig02_stations_distribution.py
 """
 from __future__ import annotations
 
-import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -65,18 +64,13 @@ cbar.set_label("Number of ocean grid points")
 
 for sid in STATIONS:
     s = rows[sid]
-    eb = ax.errorbar(
+    ax.errorbar(
         s["temp_mean"], s["npp_mean"],
         xerr=[[s["temp_mean"] - s["temp_q25"]], [s["temp_q75"] - s["temp_mean"]]],
         yerr=[[s["npp_mean"] - s["npp_q25"]], [s["npp_q75"] - s["npp_mean"]]],
         fmt=fs.marker(sid), color=fs.color(sid), markersize=9, capsize=3, capthick=1.4,
         elinewidth=1.4, ecolor="black", markeredgecolor="black", markeredgewidth=0.8, zorder=6,
     )
-    halo = [pe.withStroke(linewidth=2.8, foreground="white")]   # white halo -> legible over the scatter
-    for ln in eb[1]:        # cap lines
-        ln.set_path_effects(halo)
-    for lc in eb[2]:        # bar line collections
-        lc.set_path_effects(halo)
 
 handles = [Line2D([0], [0], marker=fs.marker(sid), color="none", markerfacecolor=fs.color(sid),
                   markeredgecolor="black", markersize=8, linestyle="None", label=fs.label(sid))
