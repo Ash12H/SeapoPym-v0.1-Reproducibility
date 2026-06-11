@@ -1,30 +1,26 @@
-"""rehearsal/figstyle.py — single source of truth for the paper's figure identity.
+"""figstyle — single source of truth for the paper's figure identity.
 
-Every figure script imports this module so fonts, sizes, colours, markers and the per-station
-identity are IDENTICAL across the whole paper. The Copernicus / GMD rules are documented in
-Review/figure-guidelines.md; the hard ones are enforced here (one sans-serif family, embedded
-fonts, >= 8 cm width, 300 dpi, colour-blind-safe AND grayscale-distinguishable via marker shape).
+Every figure script imports this so fonts, sizes, colours, markers and the per-station identity are
+IDENTICAL across the whole paper. The Copernicus / GMD rules are documented in
+Review/figure-guidelines.md; the hard ones are enforced here (one sans-serif family, embedded fonts,
+>= 8 cm width, 300 dpi, colour-blind-safe AND grayscale-distinguishable via marker shape).
 
-Station identity (FIXED everywhere): each experiment has ONE colour and ONE marker, never reused
-for another station and never changed between figures. Colour encodes sea-surface temperature
-(cold blue -> warm red); MERGED is the neutral joint reference (black star). The shape carries the
-same ranking, so a figure stays readable in grayscale and under colour-vision deficiency.
+Station identity (FIXED everywhere): each experiment has ONE colour and ONE marker, never reused for
+another station and never changed between figures. Colour encodes sea-surface temperature (cold blue
+-> warm red); MERGED is the neutral joint reference (black star). The shape carries the same ranking,
+so a figure stays readable in grayscale and under colour-vision deficiency.
 
-    import figstyle as fs                  # applies the house style on import
-    fs.scatter(ax, x, y, "HOT")            # HOT's fixed marker + colour + size
-    handles = fs.legend_handles(exps)      # one entry per station, canonical order
-    fs.save(fig, "cmaes_convergence")      # writes <stem>.pdf (vector) + <stem>.png (300 dpi)
+    from seapopym_repro import figstyle as fs   # applies the house style on import
+    fs.scatter(ax, x, y, "HOT")                  # HOT's fixed marker + colour + size
+    handles = fs.legend_handles(exps)            # one entry per station, canonical order
+    fs.save(fig, "cmaes_convergence")            # writes <stem>.pdf (vector) + <stem>.png (300 dpi)
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import matplotlib as mpl
-import yaml
 from matplotlib.lines import Line2D
 
-ROOT = Path(__file__).resolve().parents[1]
-FIG_DIR = ROOT / "rehearsal" / "figures"
+from .paths import FIGURES, ROOT, load_params  # noqa: F401  (ROOT re-exported for scripts)
 
 # ---- GMD / Copernicus dimensions (figsize is in inches; 1 cm = 1/2.54 in) -------------------
 # Copernicus: figure width must be >= 8 cm; full text width is ~17 cm. Target these, never wider.
@@ -49,7 +45,7 @@ STATIONS = {
 ORDER = ["MERGED", "BARENTS", "PAPA", "Bay_of_Biscay", "Canaries", "BATS", "HOT"]
 
 # ---- model parameters (labels + reference + bounds), shared by the recovery figures ---------
-_p = yaml.safe_load(open(ROOT / "parameters.yaml"))["model_parameters"]
+_p = load_params()["model_parameters"]
 REF, BOUNDS = _p["reference"], _p["bounds"]
 PARAM_ORDER = ["energy_transfert", "tr_0", "gamma_tr", "lambda_temperature_0", "gamma_lambda_temperature"]
 PLABEL = {
@@ -127,7 +123,7 @@ def apply() -> None:
 
 def save(fig, stem: str, subdir: str = "cmaes") -> None:
     """Write the figure as BOTH vector PDF (GMD primary) and 300-dpi PNG (preview/inspection)."""
-    out = FIG_DIR / subdir if subdir else FIG_DIR
+    out = FIGURES / subdir if subdir else FIGURES
     out.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
         p = out / f"{stem}.{ext}"

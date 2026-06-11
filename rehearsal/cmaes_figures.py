@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
 
-import figstyle as fs
+from seapopym_repro import figstyle as fs
 
 CMA = fs.ROOT / "rehearsal" / "cmaes"
 REF, PARAM_ORDER, PLABEL = fs.REF, fs.PARAM_ORDER, fs.PLABEL

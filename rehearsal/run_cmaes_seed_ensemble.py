@@ -36,7 +36,7 @@ import yaml
 import cma  # pycma — Hansen's reference CMA-ES (standard termination criteria + smooth bound handling)
 from dask.distributed import Client
 
-import run_ga_production as ga
+from seapopym_repro import experiment as ga
 from seapopym.configuration.no_transport import KernelParameter
 from seapopym.model.no_transport_model import NoTransportSpaceOptimizedLightModel
 from seapopym_optimization.algorithm.genetic_algorithm.evaluation_strategies import DistributedEvaluation
