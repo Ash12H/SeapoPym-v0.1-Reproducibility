@@ -125,8 +125,8 @@ ax.grid(True, which="both", alpha=0.3, linewidth=0.5)
 
 # Legend: colour = temperature, dashed = analytical asymptote.
 colour_handles = [Line2D([0], [0], color=c, lw=2, label=f"{t} °C") for t, c in zip(temperatures, colors, strict=True)]
-asymptote_handle = Line2D([0], [0], color="black", lw=1.4, ls="--", label="Analytical asymptote")
-ax.legend(handles=[*colour_handles, asymptote_handle], loc="lower right", ncol=2,
+asymptote_handle = Line2D([0], [0], color="black", lw=1.4, ls="--", label=r"$B = R/\lambda$")
+ax.legend(handles=[*colour_handles, asymptote_handle], loc="upper left", ncol=2,
           frameon=True, framealpha=0.95, facecolor="white", edgecolor="0.7")
 
 fig.tight_layout()
