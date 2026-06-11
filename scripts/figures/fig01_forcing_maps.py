@@ -40,8 +40,8 @@ for ax, panel in zip(axes.flat, PANELS):
     ax.set_global()
     ax.add_feature(cfeature.LAND, facecolor="lightgray", edgecolor="none", zorder=0)
     ax.add_feature(cfeature.COASTLINE, linewidth=0.4, edgecolor="black", zorder=2)
-    m = data.plot(ax=ax, transform=ccrs.PlateCarree(), cmap=panel["cmap"],
-                  vmin=panel["vmin"], vmax=panel["vmax"], add_colorbar=False, zorder=1)
+    m = data.plot(ax=ax, transform=ccrs.PlateCarree(), cmap=panel["cmap"], vmin=panel["vmin"],
+                  vmax=panel["vmax"], add_colorbar=False, zorder=1, rasterized=True)
     ax.gridlines(linewidth=0.4, color="gray", alpha=0.4, linestyle="--")
     cbar = plt.colorbar(m, ax=ax, orientation="horizontal", pad=0.04, shrink=0.85,
                         extend="max" if panel["vmax"] is not None else "neither")
