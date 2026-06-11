@@ -103,6 +103,39 @@ def best_of_logbook(out):
     return float(-wf.max()), {k: float(b[k]) for k in ga.PARAM_KEYS}, int(df.index.get_level_values("Generation").max())
 
 
+def build_convergence_traces(lam, experiments, ndown=120):
+    """Freeze the committed convergence PRODUCT from the per-seed logbooks (the display contract).
+
+    For every (experiment, seed) parquet: best-so-far NRMSE per generation, mapped to model
+    evaluations = (gen+1)*lam, then log-spaced-downsampled to <= `ndown` points (the figure is
+    log-log, so this is visually lossless) — small enough to commit as CSV while the heavy parquets
+    stay gitignored. Output (cols: experiment, seed, evaluations, best_nrmse):
+        cmaes/cmaes_convergence_traces_l{lam}.csv
+    """
+    wf = ("Weighted_fitness", "Weighted_fitness")
+    rows = []
+    for exp in experiments:
+        for p in sorted(CMA_SEED_DIR.glob(f"ga_logbook_{exp}_lambda{lam}_seed*.parquet")):
+            seed = int(p.stem.split("seed")[-1])
+            per_gen = pd.read_parquet(p)[wf].groupby(level="Generation").max().sort_index()
+            best = -per_gen.cummax().to_numpy()
+            evals = (per_gen.index.to_numpy() + 1) * lam
+            n = len(best)
+            if n > ndown:                       # log-spaced indices: dense early, sparse late
+                idx = np.unique(np.round(np.logspace(0, np.log10(n), ndown)).astype(int) - 1)
+                idx = idx[(idx >= 0) & (idx < n)]
+            else:
+                idx = np.arange(n)
+            for i in idx:
+                rows.append({"experiment": exp, "seed": seed,
+                             "evaluations": int(evals[i]), "best_nrmse": float(best[i])})
+    out = CMA_DIR / f"cmaes_convergence_traces_l{lam}.csv"
+    pd.DataFrame(rows).to_csv(out, index=False)
+    print(f"froze convergence traces -> {out.name} ({len(rows)} rows, "
+          f"{len({(r['experiment'], r['seed']) for r in rows})} traces)", flush=True)
+    return out
+
+
 def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen):
     observations = ga.build_observations(exp, stations_meta)
     obs_names = [o.name for o in observations]
@@ -162,6 +195,8 @@ def main():
     ap.add_argument("--memory-limit", default="4GB", help="per-worker memory, single station (default 4GB)")
     ap.add_argument("--merged-workers", type=int, default=6, help="process workers for MERGED (default 6)")
     ap.add_argument("--merged-mem", default="6GB", help="per-worker memory for MERGED (default 6GB)")
+    ap.add_argument("--freeze", action="store_true",
+                    help="rebuild the committed products (convergence-traces CSV) from existing per-seed logbooks; no optimisation")
     args = ap.parse_args()
     experiments = [e.strip() for e in args.experiments.split(",") if e.strip()]
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()] if args.seeds else list(range(args.n_seeds))
@@ -171,6 +206,9 @@ def main():
 
     CMA_DIR.mkdir(parents=True, exist_ok=True)
     CMA_SEED_DIR.mkdir(parents=True, exist_ok=True)
+    if args.freeze:                                          # rebuild committed products only (no runs)
+        build_convergence_traces(lam, experiments)
+        return
     params = yaml.safe_load(open(ga.ROOT / "parameters.yaml"))
     stations_meta = json.load(open(ga.DATA_DIR / "stations_coords.json"))
     forcing = ga.build_forcing()
@@ -197,6 +235,7 @@ def main():
     total_cap = int(df["cap_hit"].sum())
     print(f"\nseeds hitting NGEN cap ({NGEN}): {total_cap}/{len(df)} "
           + ("(OK — convergence governs)" if total_cap == 0 else "(some capped → raise --ngen)"), flush=True)
+    build_convergence_traces(lam, experiments)               # freeze the committed convergence product
 
 
 if __name__ == "__main__":
