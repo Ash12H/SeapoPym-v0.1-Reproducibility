@@ -12,12 +12,12 @@ Run    : .venv/bin/python scripts/figures/fig02_stations_distribution.py
 """
 from __future__ import annotations
 
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 from matplotlib.lines import Line2D
-from matplotlib.patches import Rectangle
 from scipy.stats import gaussian_kde
 
 from seapopym_repro import figstyle as fs, paths
@@ -69,18 +69,24 @@ cbar.set_label("Relative density of ocean grid points")
 
 for sid in STATIONS:
     s = rows[sid]
-    ax.errorbar(
+    eb = ax.errorbar(
         s["temp_mean"], s["npp_mean"],
         xerr=[[s["temp_mean"] - s["temp_q25"]], [s["temp_q75"] - s["temp_mean"]]],
         yerr=[[s["npp_mean"] - s["npp_q25"]], [s["npp_q75"] - s["npp_mean"]]],
-        fmt=fs.marker(sid), color=fs.color(sid), markersize=9, capsize=3, capthick=1.2,
-        elinewidth=1.2, ecolor="0.25", markeredgecolor="black", markeredgewidth=0.8, zorder=5,
+        fmt=fs.marker(sid), color=fs.color(sid), markersize=9, capsize=3, capthick=1.4,
+        elinewidth=1.4, ecolor="black", markeredgecolor="black", markeredgewidth=0.8, zorder=6,
     )
+    halo = [pe.withStroke(linewidth=2.8, foreground="white")]   # white halo -> legible over the scatter
+    for ln in eb[1]:        # cap lines
+        ln.set_path_effects(halo)
+    for lc in eb[2]:        # bar line collections
+        lc.set_path_effects(halo)
 
 handles = [Line2D([0], [0], marker=fs.marker(sid), color="none", markerfacecolor=fs.color(sid),
                   markeredgecolor="black", markersize=8, linestyle="None", label=fs.label(sid))
            for sid in STATIONS]
-handles.append(Rectangle((0, 0), 1, 1, fc="none", ec="0.25", linewidth=1.2, label="IQR (Q25-Q75)"))
+handles.append(Line2D([0], [0], color="black", linewidth=1.4, marker="|", markersize=9,
+                       markeredgewidth=1.4, label="IQR (Q25-Q75)"))
 
 ax.set_xlabel("Mean temperature (°C)")
 ax.set_ylabel(r"Mean primary production (mg C m$^{-2}$ d$^{-1}$)")
