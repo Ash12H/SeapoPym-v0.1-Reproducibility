@@ -28,8 +28,9 @@ from seapopym.configuration.no_transport import (
 from seapopym.model.no_transport_model import NoTransportModel
 
 SOLVER = "implicit"
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
+from seapopym_repro import paths
+ROOT = paths.ROOT
+DATA = paths.DATA
 
 PARAMS = yaml.safe_load(open(ROOT / "parameters.yaml"))
 REF = PARAMS["model_parameters"]["reference"]

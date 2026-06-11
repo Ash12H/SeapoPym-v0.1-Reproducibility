@@ -56,9 +56,10 @@ from seapopym.configuration.no_transport import (
 )
 from seapopym.model.no_transport_model import NoTransportSpaceOptimizedLightModel
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
-OUT_DIR = ROOT / "rehearsal" / "sobol"
+from seapopym_repro import paths
+ROOT = paths.ROOT
+DATA_DIR = paths.DATA
+OUT_DIR = paths.RESULTS_RAW / "sobol"
 
 SOLVER = "implicit"
 SEED = 0  # reproducible Saltelli sample

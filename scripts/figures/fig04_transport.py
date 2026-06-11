@@ -29,9 +29,10 @@ BIOMASS_VMAX = 3.1   # g m-2
 RMSE_VMAX = 1.7      # g m-2
 MAPE_VMAX = 100.0    # %
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
-FIG_DIR = ROOT / "rehearsal" / "figures"
+from seapopym_repro import paths
+ROOT = paths.ROOT
+DATA_DIR = paths.DATA
+FIG_DIR = paths.FIGURES
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(ROOT / "parameters.yaml") as f:

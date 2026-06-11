@@ -17,9 +17,9 @@ import xarray as xr
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
-FIG_DIR = ROOT / "rehearsal" / "figures"
+from seapopym_repro import paths
+DATA_DIR = paths.DATA
+FIG_DIR = paths.FIGURES
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(DATA_DIR / "stations_coords.json") as f:

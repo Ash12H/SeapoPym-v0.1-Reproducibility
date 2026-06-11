@@ -32,8 +32,8 @@ import numpy as np
 import pandas as pd
 from SALib.analyze import sobol
 
-ROOT = Path(__file__).resolve().parents[1]
-CONV = ROOT / "rehearsal" / "sobol" / "conv"
+from seapopym_repro import paths
+CONV = paths.RESULTS_RAW / "sobol" / "conv"
 PERIOD_DAYS = 365.0
 STATIONS_ORDER = ["BARENTS", "PAPA", "Bay_of_Biscay", "Canaries", "BATS", "HOT"]
 REPORTED = ["log10(mean)", "CV", "circular"]   # metrics used for the convergence decision

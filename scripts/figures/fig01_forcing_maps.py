@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
-FIG_DIR = ROOT / "rehearsal" / "figures"
+from seapopym_repro import paths
+DATA_DIR = paths.DATA
+FIG_DIR = paths.FIGURES
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 ANALYSIS_START, ANALYSIS_END = "2000-01-01", "2019-12-31"
 

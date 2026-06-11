@@ -30,11 +30,11 @@ from seapopym.configuration.no_transport import (
 )
 from seapopym.model.no_transport_model import NoTransportSpaceOptimizedLightModel
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
-DATA = ROOT / "data"
-LOGS = HERE / "logbooks"
-FIG = HERE / "figures"
+from seapopym_repro import paths
+ROOT = paths.ROOT
+DATA = paths.DATA
+LOGS = paths.RESULTS_RAW / "logbooks_legacy"   # GA logbooks: this figure is a GA-era template, pending a CMA-ES rebuild
+FIG = paths.FIGURES
 FIG.mkdir(exist_ok=True)
 WF = ("Weighted_fitness", "Weighted_fitness")
 

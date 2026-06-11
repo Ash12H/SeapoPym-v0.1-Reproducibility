@@ -30,8 +30,9 @@ from seapopym.configuration.no_transport import (
 )
 from seapopym.model.no_transport_model import NoTransportModel
 
-ROOT = Path(__file__).resolve().parents[1]
-FIG_DIR = ROOT / "rehearsal" / "figures"
+from seapopym_repro import paths
+ROOT = paths.ROOT
+FIG_DIR = paths.FIGURES
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(ROOT / "parameters.yaml") as f:

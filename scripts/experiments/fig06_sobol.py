@@ -43,16 +43,17 @@ import xarray as xr
 import yaml
 from SALib.analyze import sobol
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
-SOB = ROOT / "rehearsal" / "sobol"
+from seapopym_repro import paths
+ROOT = paths.ROOT
+DATA = paths.DATA
+SOB = paths.RESULTS_RAW / "sobol"
 
 _ap = argparse.ArgumentParser()
 _ap.add_argument("--subdir", default=None,
                  help="read run + write figure under rehearsal/sobol/<subdir>/ (e.g. conv/N16384)")
 _args = _ap.parse_args()
 SRC = SOB / _args.subdir if _args.subdir else SOB
-FIGURES = ROOT / "rehearsal" / "figures"   # canonical manuscript-figure location (like Figure_3/5/7…)
+FIGURES = paths.FIGURES   # canonical manuscript-figure location
 FIGURES.mkdir(parents=True, exist_ok=True)
 
 PLABEL = {"energy_transfert": r"$E$", "tr_0": r"$\tau_{r_0}$", "gamma_tr": r"$\gamma_{\tau_r}$",

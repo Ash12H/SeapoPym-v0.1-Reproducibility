@@ -19,9 +19,9 @@ import pandas as pd
 import xarray as xr
 from matplotlib.lines import Line2D
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
-FIG = ROOT / "rehearsal" / "figures"
+from seapopym_repro import paths
+DATA = paths.DATA
+FIG = paths.FIGURES
 OBS_BASE = Path("/Users/ash/Documents/Workspace/SeapoPym-Data/src")
 C_OBS, C_LMTL, C_SEAPO = "#2ca02c", "#1f77b4", "#d62728"
 T0, T1 = "2000-01-01", "2020-01-01"
