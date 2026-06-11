@@ -38,8 +38,8 @@ FIG_DIR.mkdir(parents=True, exist_ok=True)
 with open(ROOT / "parameters.yaml") as f:
     GS = yaml.safe_load(f)["global_simulation"]
 T_ANALYSIS_START = (datetime.strptime(GS["spin_up_end"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-T_END = GS[GS["mode"]]["end_date"]
-print(f"Mode: {GS['mode']} | analysis window: {T_ANALYSIS_START} -> {T_END}")
+T_END = GS["end_date"]
+print(f"analysis window: {T_ANALYSIS_START} -> {T_END}")
 
 time_slice = slice(T_ANALYSIS_START, T_END)
 pred = (

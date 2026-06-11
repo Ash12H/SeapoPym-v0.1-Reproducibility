@@ -45,14 +45,10 @@ forcing:
   spin_up_years: 2              # first 2 years excluded from analysis
 
 # -----------------------------------------------------------------------------
-# Sobol sensitivity analysis (Manuscript Section 2.4.3)
-#
-# Two run modes:
-#   - "test":       192 simulations, ~30 s — validates the pipeline end-to-end
-#   - "production": 1,190,700 simulations, ~1.5-4 h — reproduces published Figure 5
+# Sobol sensitivity analysis (Manuscript Section 2.4.3). Production only; the converged sample
+# size (N=8192) is selected by scripts/experiments/run_sobol_convergence.py.
 # -----------------------------------------------------------------------------
 sobol:
-  mode: test
   parameters_ordered:
     - energy_transfert
     - tr_0
@@ -74,58 +70,19 @@ sobol:
     spin_up_start: "2004-01-01"   # 2-year spin-up (was 2005 = 1 year); cold/low-λ cases need >1 yr to equilibrate
     start:         "2006-01-01"
     end:           "2007-01-01"
-  test:
-    n_samples_per_dim: 1024      # 1024 * (2*P+2) = 12,288 simulations (~8 min)
-  production:
-    n_samples_per_dim: 99225     # 99225 * (2*P+2) = 1,190,700 simulations
+  n_samples_per_dim: 99225       # production SALib N; total sims = N*(2P+2). Convergence selects N=8192.
+
+# (The genetic-algorithm section was removed: the GA is abandoned in favour of pycma CMA-ES.
+#  CMA-ES settings live in scripts/experiments/run_cmaes_seed_ensemble.py.)
 
 # -----------------------------------------------------------------------------
-# Genetic algorithm — twin experiments (Manuscript Section 2.4.4)
-#
-# Two run modes:
-#   - "test":       64 simulations per experiment, ~1 min total — pipeline check
-#   - "production": 204,336 simulations per experiment, ~7-14 h on cluster
-# -----------------------------------------------------------------------------
-genetic_algorithm:
-  mode: production
-  tournament_size: 2             # binary tournament (Deb et al. 2002)
-  cxpb: 0.9                      # crossover probability
-  cx_method: sbx                 # simulated binary crossover (real-coded)
-  cx_eta: 15.0                   # SBX distribution index (eta_c)
-  # Early stopping on the best-so-far NRMSE (replaces a fixed generation cap):
-  # stop after `patience` generations without > `tolerance` relative improvement,
-  # checked from `min_gen` onwards. Initial population = a plain Sobol sequence of
-  # exactly `population_size` points (no member dropped between gen 0 and gen 1).
-  patience: 25
-  tolerance: 1.0e-3
-  min_gen: 20
-  # 7 experiments: 6 single-station + MERGED (joint over all stations)
-  experiments: [BARENTS, PAPA, Bay_of_Biscay, BATS, Canaries, HOT, MERGED]
-  test:
-    n_generations: 50            # cap; early-stopping governs (quick smoke)
-    population_size: 64
-  production:
-    n_generations: 250           # cap; early-stopping governs
-    population_size: 256
-  validation:
-    n_generations: 100
-    population_size: 128
-
-# -----------------------------------------------------------------------------
-# Global simulation — transport-impact comparison (Manuscript Section 2.4.2)
-#
-# Two run modes:
-#   - "test":       3-year window (1998-2000, 2 spin-up + 1 analysis), ~30 s
-#   - "production": 22-year window (1998-2019, 2 spin-up + 20 analysis), ~4-5 min
+# Global simulation — transport-impact comparison (Manuscript Section 2.4.2).
+# Production: 22-year window (1998-2019, 2 spin-up + 20 analysis).
 # -----------------------------------------------------------------------------
 global_simulation:
-  mode: test
   start_date:     "1998-01-01"
   spin_up_end:    "1999-12-31"     # analysis starts the next day (2000-01-01)
-  test:
-    end_date:     "2003-12-31"     # 4 years of analysis (~2 min)
-  production:
-    end_date:     "2019-12-31"     # 20 years of analysis
+  end_date:       "2019-12-31"     # 20 years of analysis
 
 # -----------------------------------------------------------------------------
 # Theoretical validation benchmark (Manuscript Section 2.4.1)

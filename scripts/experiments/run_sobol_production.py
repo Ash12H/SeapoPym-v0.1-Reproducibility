@@ -23,12 +23,11 @@ RESUMABLE: results are written batch-by-batch to rehearsal/sobol/sobol_results.p
 Re-running after an interruption (Ctrl-C, crash, shutdown) reloads what is already there and
 skips completed batches — exactly the mechanism from notebook 02.
 
-Run:
-    .venv/bin/python rehearsal/run_sobol_production.py                 # uses sobol.mode in yaml
-    .venv/bin/python rehearsal/run_sobol_production.py --mode test     # 12,288 sims (~8 min)
-    .venv/bin/python rehearsal/run_sobol_production.py --mode production
-    .venv/bin/python rehearsal/run_sobol_production.py --mode test --limit 200   # quick smoke
-    .venv/bin/python rehearsal/run_sobol_production.py --workers 8 --batch-size 2000
+Run (usually driven by run_sobol_convergence.py, which calls this once per N):
+    .venv/bin/python scripts/experiments/run_sobol_production.py                 # production N from parameters.yaml
+    .venv/bin/python scripts/experiments/run_sobol_production.py --n 8192         # a specific base N
+    .venv/bin/python scripts/experiments/run_sobol_production.py --limit 200      # quick smoke
+    .venv/bin/python scripts/experiments/run_sobol_production.py --workers 8 --batch-size 2000
 """
 
 from __future__ import annotations
@@ -133,8 +132,6 @@ def evaluate_sample(params, forcing_parameter, station_grid, t_analysis):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["test", "production"], default=None,
-                    help="override sobol.mode from parameters.yaml")
     ap.add_argument("--n", type=int, default=None,
                     help="override n_samples_per_dim (base N); total = N*(2D+2) or N*(D+2)")
     ap.add_argument("--out-subdir", default=None,
@@ -152,11 +149,10 @@ def main():
     with open(ROOT / "parameters.yaml") as f:
         params = yaml.safe_load(f)
     sobol = params["sobol"]
-    mode = args.mode or sobol["mode"]
     names = sobol["parameters_ordered"]
     metrics = sobol["metrics"]
     period = sobol["analysis_period"]
-    n_samples = args.n if args.n is not None else sobol[mode]["n_samples_per_dim"]
+    n_samples = args.n if args.n is not None else sobol["n_samples_per_dim"]
     calc_second_order = args.second_order  # default False: only S1/ST are reported (Figure 6)
 
     # UNIFIED bounds = the GA bounds (not sobol.bounds).
@@ -185,7 +181,7 @@ def main():
         print(f"--limit {args.limit}: evaluating only the first {len(samples):,} samples", flush=True)
 
     meta_path.write_text(json.dumps({
-        "solver": SOLVER, "mode": mode, "bounds_source": "model_parameters.bounds (unified GA bounds)",
+        "solver": SOLVER, "mode": "production", "bounds_source": "model_parameters.bounds (unified GA bounds)",
         "names": names, "bounds": {n: b for n, b in zip(names, bounds)}, "metrics": metrics,
         "n_samples_per_dim": n_samples, "calc_second_order": calc_second_order,
         "total_samples": int(expected_total),
@@ -205,8 +201,7 @@ def main():
 
     client = Client(n_workers=args.workers, threads_per_worker=1, memory_limit=args.memory_limit)
     print(f"Dask dashboard: {client.dashboard_link}", flush=True)
-    print(f"mode={mode} | solver={SOLVER} | samples={len(samples):,} | batch={args.batch_size} "
-          f"| bounds=GA", flush=True)
+    print(f"solver={SOLVER} | samples={len(samples):,} | batch={args.batch_size} | bounds=GA", flush=True)
     forcing_future = client.scatter(forcing, broadcast=True)
 
     batch_size = args.batch_size
