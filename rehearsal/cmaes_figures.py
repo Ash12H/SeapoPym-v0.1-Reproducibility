@@ -28,7 +28,9 @@ FIG = ROOT / "rehearsal" / "figures" / "cmaes"
 FIG.mkdir(parents=True, exist_ok=True)
 WF = ("Weighted_fitness", "Weighted_fitness")
 
-ORDER = ["BARENTS", "PAPA", "Bay_of_Biscay", "BATS", "Canaries", "HOT", "MERGED"]
+# MERGED leftmost, then single stations coldest -> warmest (mean SST: BARENTS 1, PAPA 9, BISCAY 14,
+# CANARY 19, BATS 21, HOT 24 °C) — same cold->warm convention as the Sobol figure.
+ORDER = ["MERGED", "BARENTS", "PAPA", "Bay_of_Biscay", "Canaries", "BATS", "HOT"]
 DISPLAY = {"BARENTS": "BARENTS", "PAPA": "PAPA", "Bay_of_Biscay": "BISCAY", "BATS": "BATS",
            "Canaries": "CANARY", "HOT": "HOT", "MERGED": "MERGED"}
 PARAM_ORDER = ["energy_transfert", "tr_0", "gamma_tr", "lambda_temperature_0", "gamma_lambda_temperature"]
@@ -108,14 +110,15 @@ def fig_recovery_values():
     fig, axes = plt.subplots(1, 5, figsize=(15, 4.6), dpi=200)
     x = np.arange(len(EXP))
     for ax, p in zip(axes, PARAM_ORDER):
-        lo, hi = BOUNDS[p]
+        # y-axis centred on the reference; half-range = 1.2 * largest |recovered - reference|
+        D = 1.2 * float(np.max(np.abs(d[p].to_numpy() - REF[p]))) or 1.0
         for j, e in enumerate(EXP):
             vals = d.loc[d.experiment == e, p].to_numpy()
             jit = (np.random.RandomState(0).rand(len(vals)) - 0.5) * 0.5
             ax.scatter(np.full_like(vals, x[j]) + jit, vals, s=14, alpha=0.4, color=colors[e], zorder=3)
             ax.scatter(x[j], best_row.loc[e, p], **_style(e))   # best individual highlighted
         ax.axhline(REF[p], color="gray", linestyle="--", linewidth=1.3, zorder=1)
-        ax.set_ylim(lo, hi); ax.set_xticks(x)
+        ax.set_ylim(REF[p] - D, REF[p] + D); ax.set_xticks(x)
         ax.set_xticklabels([DISPLAY[e] for e in EXP], rotation=60, fontsize=7)
         ax.set_title(PLABEL[p], fontsize=13); ax.grid(True, axis="y", alpha=0.3)
     axes[0].set_ylabel("Parameter value (within bounds)")
