@@ -18,7 +18,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from matplotlib.lines import Line2D
-from scipy.stats import gaussian_kde
 
 from seapopym_repro import figstyle as fs, paths
 
@@ -54,18 +53,15 @@ fig, ax = plt.subplots(figsize=(0.72 * fs.WIDTH_FULL, 0.58 * fs.WIDTH_FULL))
 x_min, x_max = float(temp_clean.min()) - 1, float(temp_clean.max()) + 1
 y_min, y_max = 0.0, 1000.0
 
-# density-coloured scatter: every ocean grid point, coloured by its local density (gaussian_kde,
-# which whitens by the data covariance so the T vs NPP scale difference is handled). Dense points
-# drawn last. Honest (all points shown) + smooth (no binning artefact). rasterized -> light PDF.
-disp = (npp_clean >= y_min) & (npp_clean <= y_max)
-xd, yd = temp_clean[disp], npp_clean[disp]
-dens = gaussian_kde(np.vstack([xd, yd]))(np.vstack([xd, yd]))
-dens /= dens.max()
-order = dens.argsort()
-sc = ax.scatter(xd[order], yd[order], c=dens[order], s=4, cmap="viridis",
-                edgecolors="none", vmin=0, vmax=1, rasterized=True)
-cbar = ax.figure.colorbar(sc, ax=ax, orientation="horizontal", pad=0.16, aspect=30)
-cbar.set_label("Relative density of ocean grid points")
+# 2-D histogram heatmap of the ocean grid points (the manuscript format): cell colour = number of
+# grid points, empty cells take viridis(0); vmax clipped to the 99th percentile of non-empty cells.
+bins = [50, 30]
+counts, _, _ = np.histogram2d(temp_clean, npp_clean, bins=bins, range=[[x_min, x_max], [y_min, y_max]])
+vmax = float(np.percentile(counts[counts > 0], 95))   # saturate the productive band, as in the manuscript
+hm = ax.hist2d(temp_clean, npp_clean, bins=bins, range=[[x_min, x_max], [y_min, y_max]],
+               cmap="viridis", vmax=vmax)
+cbar = ax.figure.colorbar(hm[3], ax=ax, orientation="horizontal", pad=0.16, aspect=30, extend="max")
+cbar.set_label("Number of ocean grid points")
 
 for sid in STATIONS:
     s = rows[sid]
@@ -96,7 +92,7 @@ ax.grid(axis="y", linestyle="--", alpha=0.3, linewidth=0.5)
 ax.set_axisbelow(True)
 # force a frame here (figstyle disables it globally): the legend sits over the scatter, so it needs
 # an opaque white background to stay readable
-leg = ax.legend(handles=handles, loc="upper right", ncol=1, frameon=True, framealpha=0.95,
+leg = ax.legend(handles=handles, loc="upper left", ncol=2, frameon=True, framealpha=0.95,
                 facecolor="white", edgecolor="0.7", fancybox=False)
 leg.set_zorder(10)
 
