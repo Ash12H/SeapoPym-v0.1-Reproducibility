@@ -1,24 +1,24 @@
-"""rehearsal/run_cmaes_seed_ensemble.py — CMA-ES CROSS-CHECK (multi-start, DEAP default lambda).
+"""rehearsal/run_cmaes_seed_ensemble.py — seeded CMA-ES ensemble (pycma) for the twin experiment.
 
-Independent robustness check of the GA, NOT the headline method: do GA and CMA-ES agree on the
-recovered parameters / the regime-dependent reliability story? CMA-ES is a different optimiser
-family (adapts a covariance matrix + step size), so agreement is strong evidence the findings are
-about the problem, not the optimiser.
+Per-station seeded multi-start CMA-ES (Hansen's reference implementation, pycma): characterises
+convergence + identifiability from the distribution of N restarts, and serves as the
+operator-independent cross-check of the GA (same objective, different optimiser family).
 
-Large-scale config (defaults): lambda = DEAP default int(4+3*ln(N)) = 8, 100 fully-random restarts
-per experiment (seeds 0..99, no privileged centre start). Convergence is sigma<1e-3 (or ill-conditioned
-covariance); NGEN is a high backstop (default 1000) that should NOT bind — a cap_hit flag + count
-verify this. Same objective as the GA (mean station NRMSE via CostFunction + DistributedEvaluation);
-params normalised to [0,1]^5 (GA bounds), clipped + nan/inf-safe. Compare on PARAMETER RECOVERY vs
-reference, not on NRMSE (low NRMSE on warm stations is equifinality, not recovery).
+Config (defaults): lambda = CMA-ES default int(4+3*ln(N)) = 8, 100 fully-random restarts per
+experiment (seeds 0..99). pycma handles the [0,1]^5 box bounds smoothly (no hard clipping ->
+no boundary pile-up, unlike the old DEAP+clip version which trapped solutions on the bounds).
+Termination = pycma's STANDARD criteria (tolx 1e-4 / tolfun / conditioncov / ...); maxiter=ngen
+(default 1000) is a backstop that should NOT bind — cap_hit + the logged stop reason verify this.
+Same objective as the GA (mean station NRMSE via CostFunction + DistributedEvaluation, Dask method A:
+the lambda candidates of each generation evaluated across process workers). Compare on PARAMETER
+RECOVERY vs reference, not on NRMSE (low NRMSE on warm stations is equifinality, not recovery).
 
 RESUMABLE per seed: each seed's full trajectory is written to a lambda-namespaced logbook; a restart
-reuses any seed whose logbook already exists (so a crash loses at most the in-flight seed). Outputs
-are ISOLATED (never clobber the GA logbooks) and namespaced by lambda (never clobber another config):
-    logbooks/cmaes/seeds/ga_logbook_{exp}_lambda{L}_seed{S}.parquet   per-seed trajectory (resume unit)
-    logbooks/cmaes/ga_logbook_{exp}.parquet                           best seed (read by figure scripts)
-    logbooks/cmaes_seed_ensemble_l{L}.csv                             all (exp, seed) results + cap_hit
-Resumable at the experiment level (marker tag "cmaes_ms").
+reuses any seed whose logbook already exists (a crash loses at most the in-flight seed). Outputs go to
+rehearsal/cmaes/ (the dedicated production folder), namespaced by lambda:
+    cmaes/seeds/ga_logbook_{exp}_lambda{L}_seed{S}.parquet   per-seed trajectory (resume unit)
+    cmaes/ga_logbook_{exp}.parquet                           best seed (read by figure scripts)
+    cmaes/cmaes_seed_ensemble_l{L}.csv                       all (exp, seed) results + cap_hit
 
 Run: .venv/bin/python rehearsal/run_cmaes_seed_ensemble.py
 """
@@ -33,8 +33,8 @@ import time
 import numpy as np
 import pandas as pd
 import yaml
+import cma  # pycma — Hansen's reference CMA-ES (standard termination criteria + smooth bound handling)
 from dask.distributed import Client
-from deap import base, cma, creator
 
 import run_ga_production as ga
 from seapopym.configuration.no_transport import KernelParameter
@@ -52,35 +52,34 @@ REF = yaml.safe_load(open(ga.ROOT / "parameters.yaml"))["model_parameters"]["ref
 
 
 def cmaes_lambda(n_params: int) -> int:
-    """DEAP's default CMA-ES population size, lambda = int(4 + 3*ln(N))."""
+    """CMA-ES default population size, lambda = int(4 + 3*ln(N))."""
     return int(4 + 3 * np.log(n_params))
 
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-creator.create("Individual", list, fitness=creator.FitnessMin)
 
+def run_seed(seed, names, lo, hi, obs_names, evalstrat, lam, ngen):
+    """One seeded CMA-ES restart (pycma), evaluated via `evalstrat` (Dask method A).
 
-def run_seed(seed, names, lo, hi, obs_names, evalstrat, lam):
+    Fresh random start in [0,1]^5 (reproducible from `seed`); pycma handles the box bounds smoothly
+    (no hard clipping -> no boundary pile-up). Stops on pycma's STANDARD criteria (tolx/tolfun/
+    conditioncov/...) with maxiter=ngen as a backstop. Returns (best, params, logbook, stop_reason).
+    """
+    D = len(names)
+
     def denorm(xn):
-        xn = np.nan_to_num(np.asarray(xn, float), nan=0.5, posinf=1.0, neginf=0.0)
-        return (lo + np.clip(xn, 0.0, 1.0) * (hi - lo)).tolist()
+        return (lo + np.clip(np.asarray(xn, float), 0.0, 1.0) * (hi - lo)).tolist()
 
-    np.random.seed(seed)
-    # Every seed is a fresh random restart in [0,1]^5 — no privileged centre start, so this mirrors
-    # the GA ensemble (10 random Sobol inits) and characterises run-to-run reliability the same way.
-    start = list(np.random.uniform(0.0, 1.0, len(names)))
-    strat = cma.Strategy(centroid=start, sigma=SIGMA0, lambda_=lam)
-    tb = base.Toolbox()
-    tb.register("generate", strat.generate, creator.Individual)
-    tb.register("update", strat.update)
-    rows, index, best = [], [], np.inf
-    for gen in range(NGEN):
-        pop = tb.generate()
-        reals = [denorm(ind) for ind in pop]
+    x0 = np.random.RandomState(seed).uniform(0.0, 1.0, D).tolist()   # reproducible random restart
+    es = cma.CMAEvolutionStrategy(x0, SIGMA0, {
+        "bounds": [0.0, 1.0], "popsize": lam, "seed": int(seed) + 1,  # +1: pycma treats seed 0 as random
+        "maxiter": ngen, "tolx": 1e-4, "verbose": -9})
+    rows, index, best, gen = [], [], np.inf, 0
+    while not es.stop():
+        X = es.ask()                                   # lam candidates in [0,1]^D (bounds handled by pycma)
+        reals = [denorm(x) for x in X]
         fits = evalstrat.evaluate(reals)
         costs = [float(np.mean(np.asarray(f, float))) for f in fits]
-        for ind, c in zip(pop, costs):
-            ind.fitness.values = (c,)
-        tb.update(pop)
+        costs = [c if np.isfinite(c) else 1e6 for c in costs]   # nan/inf -> penalty (safe for es.tell)
+        es.tell(X, costs)
         for i, (real, f, c) in enumerate(zip(reals, fits, costs)):
             index.append((gen, False, i))
             row = {("Parametre", p): real[j] for j, p in enumerate(names)}
@@ -88,14 +87,12 @@ def run_seed(seed, names, lo, hi, obs_names, evalstrat, lam):
             row[("Weighted_fitness", "Weighted_fitness")] = -c
             rows.append(row)
         best = min(best, min(costs))
-        cov_bad = (not np.all(np.isfinite(strat.C))) or (np.linalg.cond(strat.C) > 1e12)
-        if strat.sigma < 1e-3 or cov_bad:
-            break
+        gen += 1
     df = pd.DataFrame(rows, index=pd.MultiIndex.from_tuples(
         index, names=["Generation", "Is_From_Previous_Generation", "Individual"]))
     df.columns = pd.MultiIndex.from_tuples(df.columns)
     bx = df.loc[df[("Weighted_fitness", "Weighted_fitness")].idxmax(), "Parametre"].to_dict()
-    return best, {k: float(bx[k]) for k in ga.PARAM_KEYS}, df
+    return best, {k: float(bx[k]) for k in ga.PARAM_KEYS}, df, ",".join(sorted(es.stop()))
 
 
 def best_of_logbook(out):
@@ -131,16 +128,16 @@ def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen
         out = CMA_SEED_DIR / f"ga_logbook_{exp}_lambda{lam}_seed{seed}.parquet"  # namespaced by lambda
         if out.exists():                              # per-seed RESUME (robust restart signal)
             nrmse, prm, stop_gen = best_of_logbook(out)
-            reused = True
+            stop_reason = "reuse"
         else:
-            nrmse, prm, df = run_seed(seed, names, lo, hi, obs_names, evalstrat, lam)
+            nrmse, prm, df, stop_reason = run_seed(seed, names, lo, hi, obs_names, evalstrat, lam, ngen)
             df.to_parquet(out)
-            stop_gen, reused = int(df.index.get_level_values("Generation").max()), False
+            stop_gen = int(df.index.get_level_values("Generation").max())
         cap = stop_gen >= ngen - 1
         rows.append({"experiment": exp, "seed": seed, "lambda": lam, "best_nrmse": nrmse,
                      "stop_gen": stop_gen, "cap_hit": cap, **prm})
         print(f"    {exp:14s} seed {seed:3d} (λ={lam}) | NRMSE={nrmse:.4f} | stop_gen={stop_gen}"
-              + (" CAP!" if cap else "") + (" [reuse]" if reused else ""), flush=True)
+              + (" CAP!" if cap else "") + f" | stop={stop_reason}", flush=True)
     # copy the best seed's logbook to the canonical name read by the figure scripts
     best = min(rows, key=lambda r: r["best_nrmse"])
     shutil.copyfile(CMA_SEED_DIR / f"ga_logbook_{exp}_lambda{lam}_seed{best['seed']}.parquet",
