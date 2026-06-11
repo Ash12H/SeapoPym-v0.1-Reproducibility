@@ -13,10 +13,15 @@ be chosen — or compared — for the paper:
 The 3 raw quantities are stored; the 3 robust are exact transforms of them (nothing lost):
     log10(mean) <- mean ;  CV <- sqrt(variance)/mean ;  circular <- argmax (day-of-year, cyclic).
 
-Outputs (rehearsal/sobol/):
-    sobol_indices.csv   tidy table: family,metric,station,param,S1,S1_conf,ST,ST_conf
-    Figure_6.png        ROBUST metrics  (3 rows x 5 params, 6 stations on x), S1+ST bars + CI
-    Figure_6_raw.png    RAW metrics     (same layout) — for comparison / paper choice
+Final metric choice (2 metrics): log10(mean) — heavy-tail-corrected central tendency (raw mean is
+dominated by the runaway biomasses at near-zero mortality) — and argmax — seasonal timing, kept raw
+because it is nearly identical to the circular index (so the cos/sin decomposition adds complexity
+for no gain). The spread axis (variance/CV) and circular are dropped from the figure; all six
+indices remain in sobol_indices.csv as the record justifying the choice.
+
+Outputs:
+    rehearsal/sobol/<run>/sobol_indices.csv   tidy table (all 6 metrics): family,metric,station,param,S1,S1_conf,ST,ST_conf
+    rehearsal/figures/Figure_6.png            2 rows x 5 params (6 stations on x): log10(mean) + argmax, S1+ST bars + CI
 
 Works on any sobol_results.parquet (test 12,288 rows or production 1,190,700): the sample size
 N and the second-order design flag are inferred from the row count.
@@ -160,8 +165,9 @@ def make_figure(metrics: list[str], title: str, out: Path) -> None:
 
 
 tag = f"N={N:,}" + ("" if CALC2 else " (1st-order design)")
-# Canonical manuscript figure -> rehearsal/figures/ (with the others); raw comparison stays with the data.
-make_figure(list(ROBUST), f"Sobol sensitivity — robust metrics (implicit solver, GA bounds, {tag})",
+# Final metric choice: log10(mean) (heavy-tail-corrected central tendency) + argmax (seasonal timing;
+# nearly identical to the circular index, so we keep the simpler raw argmax). CV/circular dropped from
+# the figure; all six indices stay in sobol_indices.csv as the record.
+CHOSEN_METRICS = ["log10(mean)", "argmax"]
+make_figure(CHOSEN_METRICS, f"Sobol sensitivity — log10(mean) & argmax (implicit solver, GA bounds, {tag})",
             FIGURES / "Figure_6.png")
-make_figure(list(RAW), f"Sobol sensitivity — raw metrics (implicit solver, GA bounds, {tag})",
-            SRC / "Figure_6_raw.png")
