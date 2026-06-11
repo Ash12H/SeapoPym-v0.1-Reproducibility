@@ -2,7 +2,6 @@
 name = "seapopym-v0.1-reproducibility"
 version = "0.1.0"
 description = "Reproducibility deposit for Lehodey et al. (2026, GMD): SeapoPym v0.1"
-readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.12,<3.13"
 authors = [
