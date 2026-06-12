@@ -31,8 +31,18 @@ def nrmse_mean_comparator(prediction, observation) -> float:
 
 
 def mae_comparator(prediction, observation) -> float:
-    """Mean absolute error (absolute)."""
+    """Mean absolute error (absolute). Equals the CRPS of a deterministic point forecast (RC-3)."""
     return float(np.mean(np.abs(np.asarray(prediction) - np.asarray(observation))))
+
+
+def nmae_comparator(prediction, observation) -> float:
+    """MAE normalised by the mean of the observation (relative absolute error).
+
+    Equals a deterministic CRPS (CRPS -> MAE) normalised per station: answers RC-3's scoring-rule
+    request AND stays balanced across stations (relative weighting, no std-inflation). Recommended
+    candidate to compare/optimise across stations.
+    """
+    return mae_comparator(prediction, observation) / float(np.mean(observation))
 
 
 COMPARATORS = {
@@ -40,4 +50,5 @@ COMPARATORS = {
     "nrmse_mean": nrmse_mean_comparator,
     "rmse": rmse_comparator,
     "mae": mae_comparator,
+    "nmae": nmae_comparator,
 }
