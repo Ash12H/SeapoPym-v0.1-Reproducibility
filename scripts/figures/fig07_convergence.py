@@ -1,17 +1,20 @@
 """Figure 7 — CMA-ES convergence: best-of-ensemble trajectory per experiment.
 
-For each experiment (MERGED + 6 stations), the best of the 10 seeded restarts: its best-so-far NRMSE
+For each experiment (MERGED + 6 stations), the best of the 20 seeded restarts: its best-so-far cost
 vs model evaluations. log x-axis (the descent spans 8 -> ~10^4 evaluations); LINEAR y so the near-zero
-region is not exaggerated. Every experiment converges to the twin global optimum (NRMSE = 0) except
-HOT, whose best restart floors at ~0.07 (its information-limited structural minimum). Lines are layered
-earliest-to-stop (fewest evaluations to termination) in front. The per-seed spread is in Figure 8.
+region is not exaggerated. Every experiment converges to the twin global optimum (cost = 0) except
+HOT, whose best restart floors above zero (its information-limited structural minimum). Lines are
+layered earliest-to-stop (fewest evaluations to termination) in front. The per-seed spread is in the
+convergence-dispersion figure.
 
-Reads ONLY the committed product products/cmaes_convergence_traces_l8.csv (frozen by
-scripts/experiments/run_cmaes_seed_ensemble.py).
+Reads ONLY the committed convergence-traces product for the production cost (paths.PRODUCTION_METRIC),
+frozen by scripts/experiments/run_cmaes_seed_ensemble.py. Use --metric to render another cost's run.
 Output : figures/Figure_7.{pdf,png}
-Run    : .venv/bin/python scripts/figures/fig07_convergence.py
+Run    : .venv/bin/python scripts/figures/fig07_convergence.py [--metric nrmse_mean]
 """
 from __future__ import annotations
+
+import argparse
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -19,7 +22,13 @@ from matplotlib.lines import Line2D
 
 from seapopym_repro import figstyle as fs, paths
 
-traces = pd.read_csv(paths.PRODUCTS / "cmaes_convergence_traces_l8.csv")
+ap = argparse.ArgumentParser()
+ap.add_argument("--metric", default=paths.PRODUCTION_METRIC, help="cost metric whose frozen run to plot")
+METRIC = ap.parse_args().metric
+YLABEL = {"nrmse_std": "best-so-far NRMSE (std-norm.)", "nrmse_mean": "best-so-far NRMSE (mean-norm.)",
+          "rmse": "best-so-far RMSE", "mae": "best-so-far MAE", "nmae": "best-so-far nMAE"}.get(METRIC, "best-so-far cost")
+
+traces = pd.read_csv(paths.cmaes_product("convergence_traces", METRIC))
 ORDER = fs.order(traces.experiment.unique())   # MERGED + 6 stations, cold -> warm
 
 
@@ -49,11 +58,10 @@ for rank, e in enumerate(sorted(ORDER, key=stop_eval)):   # earliest stop -> for
 ax.set_xscale("log")
 ax.set_ylim(-0.1, None)   # small negative floor lifts the converged plateaus off the bottom frame
 ax.set_xlabel("model evaluations")
-ax.set_ylabel("best-so-far NRMSE")
+ax.set_ylabel(YLABEL)
 ax.grid(True, which="both", alpha=0.22, linewidth=0.5)
 
 handles = [Line2D([0], [0], color=fs.color(e), lw=2.2, label=fs.label(e)) for e in ORDER]
-ax.legend(handles=handles, loc="upper right", ncol=2, fontsize=7.5,
-          frameon=True, framealpha=0.95, edgecolor="0.7")
+ax.legend(handles=handles, loc="upper right", ncol=2, fontsize=7.5, frameon=True)
 fig.tight_layout()
 fs.save(fig, "Figure_7", subdir=None)
