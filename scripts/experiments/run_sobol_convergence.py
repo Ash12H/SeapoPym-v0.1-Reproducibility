@@ -27,7 +27,8 @@ from fig06b_convergence import CONV, convergence_frame, load_tables
 
 HERE = Path(__file__).resolve().parent
 RUNNER = HERE / "run_sobol_production.py"
-FIG6 = HERE / "fig06_sobol.py"
+FREEZE = HERE / "freeze_sobol_indices.py"             # raw run -> products/sobol_indices.csv
+FIG6 = HERE.parent / "figures" / "fig06_sobol.py"     # the display (now in scripts/figures/)
 FIG6B = HERE / "fig06b_convergence.py"
 
 
@@ -71,16 +72,17 @@ def main():
               "(already-computed points are reused).", flush=True)
         return
 
-    # PROMOTE the converged point to the production Figure 6
+    # PROMOTE the converged point: freeze its indices -> products/sobol_indices.csv, then plot Figure 6
     print(f"\n=================== promoting N={chosen:,} to production Figure 6 ===================", flush=True)
-    subprocess.run([sys.executable, str(FIG6), "--subdir", f"conv/N{chosen}"], check=True)
+    subprocess.run([sys.executable, str(FREEZE), "--subdir", f"conv/N{chosen}"], check=True)
+    subprocess.run([sys.executable, str(FIG6)], check=True)
     (CONV / "CHOSEN.json").write_text(json.dumps({
-        "chosen_N": chosen, "production_dir": f"rehearsal/sobol/conv/N{chosen}",
+        "chosen_N": chosen, "production_dir": f"results_raw/sobol/conv/N{chosen}",
         "ci_threshold": args.ci, "stab_threshold": args.stab,
-        "figure": f"rehearsal/sobol/conv/N{chosen}/Figure_6.png",
-        "indices_table": f"rehearsal/sobol/conv/N{chosen}/sobol_indices.csv",
+        "figure": "figures/Figure_6.{pdf,png}",
+        "indices_table": "products/sobol_indices.csv",
     }, indent=2))
-    print(f"\nPRODUCTION = rehearsal/sobol/conv/N{chosen}/  (Figure_6.png + sobol_indices.csv)", flush=True)
+    print(f"\nPRODUCTION N={chosen:,} -> products/sobol_indices.csv + figures/Figure_6.{{pdf,png}}", flush=True)
     print(f"Pointer written: {CONV / 'CHOSEN.json'}", flush=True)
 
 
