@@ -2,9 +2,9 @@
 
 For each experiment (MERGED + 6 stations), the best of the 10 seeded restarts: its best-so-far NRMSE
 vs model evaluations. log x-axis (the descent spans 8 -> ~10^4 evaluations); LINEAR y so the near-zero
-region is not exaggerated. The dashed line marks the twin global optimum (NRMSE = 0): every experiment
-reaches it except HOT, whose best restart floors at ~0.07 (its information-limited structural minimum).
-The per-seed spread is shown in Figure 8 (recovery).
+region is not exaggerated. Every experiment converges to the twin global optimum (NRMSE = 0) except
+HOT, whose best restart floors at ~0.07 (its information-limited structural minimum). Lines are layered
+fastest-to-converge in front. The per-seed spread is shown in Figure 8 (recovery).
 
 Reads ONLY the committed product products/cmaes_convergence_traces_l8.csv (frozen by
 scripts/experiments/run_cmaes_seed_ensemble.py).
@@ -30,20 +30,29 @@ def best_trajectory(exp):
     return t.evaluations.to_numpy(), t.best_nrmse.to_numpy()
 
 
+trajs = {e: best_trajectory(e) for e in ORDER}
+
+
+def converged_at(e, thresh=0.1):
+    """Evaluations to first reach NRMSE <= thresh (best-so-far is monotone, so a clean crossing)."""
+    ev, b = trajs[e]
+    below = ev[b <= thresh]
+    return below[0] if len(below) else float("inf")
+
+
 fig, ax = plt.subplots(figsize=(0.78 * fs.WIDTH_FULL, 0.52 * fs.WIDTH_FULL))
-ax.axhline(0, color="0.6", lw=0.9, ls="--", zorder=1)   # twin global optimum (NRMSE = 0)
-for e in ORDER:
-    ev, b = best_trajectory(e)
-    ax.plot(ev, b, color=fs.color(e), lw=2.4 if e == "MERGED" else 1.8, zorder=5, solid_capstyle="round")
+for rank, e in enumerate(sorted(ORDER, key=converged_at)):   # fastest to converge -> foreground
+    ev, b = trajs[e]
+    ax.plot(ev, b, color=fs.color(e), lw=2.4 if e == "MERGED" else 1.8,
+            zorder=5 + len(ORDER) - rank, solid_capstyle="round")
 
 ax.set_xscale("log")
-ax.set_ylim(-0.5, None)   # negative floor lifts the converged plateaus off the bottom frame
+ax.set_ylim(-0.1, None)   # small negative floor lifts the converged plateaus off the bottom frame
 ax.set_xlabel("model evaluations")
 ax.set_ylabel("best-so-far NRMSE")
 ax.grid(True, which="both", alpha=0.22, linewidth=0.5)
 
 handles = [Line2D([0], [0], color=fs.color(e), lw=2.2, label=fs.label(e)) for e in ORDER]
-handles.append(Line2D([0], [0], color="0.6", lw=0.9, ls="--", label="global optimum (NRMSE = 0)"))
 ax.legend(handles=handles, loc="upper right", ncol=2, fontsize=7.5,
           frameon=True, framealpha=0.95, edgecolor="0.7")
 fig.tight_layout()
