@@ -1,7 +1,8 @@
-"""Figure 1 — global forcing maps (2000-2019 time means).
+"""Figure 1 — global context maps (2000-2019 time means).
 
-Four-panel global map: (a) mean epipelagic temperature, (b) mean vertically integrated NPP,
-(c) mean current norm sqrt(U^2 + V^2), (d) mean zooplankton biomass (SEAPODYM-LMTL reference).
+Four-panel global map: (a) mean zooplankton biomass (SEAPODYM-LMTL reference), (b) mean vertically
+integrated NPP, (c) mean epipelagic temperature, (d) mean current norm sqrt(U^2 + V^2). Subplot titles
+are just the panel letter; the colour-bar label carries the full meaning.
 
 Reads ONLY the frozen product (the display contract): products/forcing_global_means.nc, produced by
 scripts/data/freeze_forcing_means.py from the heavy global forcing — no raw forcing needed here.
@@ -27,10 +28,10 @@ def add_cyclic_point(da, lon_name="X"):
 
 
 PANELS = [
-    {"key": "temperature",  "cmap": "RdYlBu_r", "vmin": None, "vmax": None, "label": "Temperature (°C)",                    "title": "(a) Mean temperature"},
-    {"key": "npp",          "cmap": "cividis",  "vmin": 0,    "vmax": 1100, "label": r"NPP (mg C m$^{-2}$ d$^{-1}$)",       "title": "(b) Mean net primary production"},
-    {"key": "current_norm", "cmap": "plasma",   "vmin": 0,    "vmax": 0.35, "label": r"Current norm (m s$^{-1}$)",          "title": "(c) Mean current norm"},
-    {"key": "zooc",         "cmap": "cividis",  "vmin": 0,    "vmax": 3.5,  "label": r"Zooplankton biomass (g C m$^{-2}$)", "title": "(d) Mean zooplankton biomass (LMTL)"},
+    {"key": "zooc",         "cmap": "cividis", "vmin": 0,    "vmax": 3.5,  "label": r"SEAPODYM-LMTL mean biomass (g C m$^{-2}$)", "panel": "(a)"},
+    {"key": "npp",          "cmap": "Greens",  "vmin": 0,    "vmax": 1100, "label": r"Mean net primary production (mg C m$^{-2}$ d$^{-1}$)", "panel": "(b)"},
+    {"key": "temperature",  "cmap": "Reds",    "vmin": 0,    "vmax": 30,   "label": "Mean temperature (°C)",                   "panel": "(c)"},
+    {"key": "current_norm", "cmap": "plasma",  "vmin": 0,    "vmax": 0.35, "label": r"Mean current norm (m s$^{-1}$)",          "panel": "(d)"},
 ]
 
 fig, axes = plt.subplots(2, 2, figsize=(fs.WIDTH_FULL, 0.70 * fs.WIDTH_FULL),
@@ -46,6 +47,6 @@ for ax, panel in zip(axes.flat, PANELS):
     cbar = plt.colorbar(m, ax=ax, orientation="horizontal", pad=0.04, shrink=0.85,
                         extend="max" if panel["vmax"] is not None else "neither")
     cbar.set_label(panel["label"])
-    ax.set_title(panel["title"])
+    ax.set_title(panel["panel"], loc="left", fontweight="bold")
 fig.tight_layout()
 fs.save(fig, "Figure_1", subdir=None)

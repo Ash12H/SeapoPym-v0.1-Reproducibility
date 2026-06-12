@@ -12,7 +12,6 @@ Run    : .venv/bin/python scripts/figures/fig03_benchmark.py
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter
@@ -24,7 +23,7 @@ temperatures = sorted(df["temperature"].unique())
 DURATION_DAYS = int(df["day"].max())
 
 fig, ax = plt.subplots(figsize=(0.70 * fs.WIDTH_FULL, 0.50 * fs.WIDTH_FULL))
-colors = plt.cm.viridis(np.linspace(0, 0.9, len(temperatures)))
+colors = [fs.temp_color(t) for t in temperatures]   # colour = temperature, on the station thermal palette
 for t, color in zip(temperatures, colors, strict=True):
     d = df[df["temperature"] == t]
     ax.plot(d["day"], d["biomass"], lw=1.6, color=color)
@@ -45,8 +44,7 @@ ax.grid(True, which="both", alpha=0.3, linewidth=0.5)
 colour_handles = [Line2D([0], [0], color=c, lw=2, label=f"{t:g} °C")
                   for t, c in zip(temperatures, colors, strict=True)]
 asymptote_handle = Line2D([0], [0], color="black", lw=1.4, ls="--", label=r"$B = R/\lambda$")
-ax.legend(handles=[*colour_handles, asymptote_handle], loc="upper left", ncol=2,
-          frameon=True, framealpha=0.95, facecolor="white", edgecolor="0.7")
+ax.legend(handles=[*colour_handles, asymptote_handle], loc="upper left", ncol=2, frameon=True)
 
 fig.tight_layout()
 fs.save(fig, "Figure_3", subdir=None)

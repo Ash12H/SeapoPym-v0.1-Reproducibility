@@ -18,8 +18,8 @@ import pandas as pd
 from seapopym_repro import figstyle as fs, paths
 
 CHOSEN_METRICS = ["log10(mean)", "argmax"]
-METRIC_LABEL = {"log10(mean)": r"$\log_{10}$(mean biomass)", "argmax": "argmax (timing)"}
-C_S1, C_ST = "#1f77b4", "#ff7f0e"   # S1 vs ST (blue/orange, colour-blind-safe pair)
+METRIC_LABEL = {"log10(mean)": r"$\log_{10}$(mean biomass)", "argmax": "Peak timing\n(day of year)"}
+C_S1, C_ST = fs.BLUE, fs.ORANGE   # S1 vs ST, same blue/orange pair as Figure 5
 
 d = pd.read_csv(paths.PRODUCTS / "sobol_indices.csv")
 STATIONS = fs.order(d.station.unique())   # the 6 single stations, coldest -> warmest
@@ -43,13 +43,11 @@ for r, metric in enumerate(CHOSEN_METRICS):
         if c == 0:
             ax.set_ylabel(METRIC_LABEL[metric], fontsize=8, fontweight="bold")
         ax.set_xticks(x)
-        ax.set_xticklabels([fs.label(s) for s in STATIONS], rotation=60, fontsize=6)
-        for tl, s in zip(ax.get_xticklabels(), STATIONS):   # station identity via label colour
-            tl.set_color(fs.color(s))
+        ax.set_xticklabels([fs.label(s) for s in STATIONS], rotation=60, fontsize=6)   # black (default)
         ax.grid(True, axis="y", alpha=0.25)
         ax.label_outer()
 axes[0][0].set_ylim(-0.05, 1.05)
 # legend in the (row 1, col 3) panel — empty there (recruitment params don't drive magnitude)
-axes[0][2].legend(loc="center", fontsize=8, frameon=True, framealpha=0.95, edgecolor="0.7")
+axes[0][2].legend(loc="center", fontsize=8, frameon=True)
 fig.tight_layout()
 fs.save(fig, "Figure_6", subdir=None)

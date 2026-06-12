@@ -44,6 +44,10 @@ STATIONS = {
 # canonical plotting order: MERGED leftmost, then single stations coldest -> warmest.
 ORDER = ["MERGED", "BARENTS", "PAPA", "Bay_of_Biscay", "Canaries", "BATS", "HOT"]
 
+# shared two-series accent pair (Okabe-Ito blue + vermillion), colour-blind safe: used wherever a figure
+# contrasts exactly two series -- Fig 5 (SEAPODYM-LMTL vs SeapoPym), Fig 6 (Sobol S1 vs ST).
+BLUE, ORANGE = "#0072B2", "#D55E00"
+
 # ---- model parameters (labels + reference + bounds), shared by the recovery figures ---------
 _p = load_params()["model_parameters"]
 REF, BOUNDS = _p["reference"], _p["bounds"]
@@ -97,6 +101,19 @@ def legend_handles(present, markersize: float = 8):
                    linestyle="", label=label(e)) for e in order(present)]
 
 
+# ---- temperature -> colour: the station palette as a continuous cold->warm map -----------------
+# Built from the single-station colours ordered coldest->warmest, so ANY temperature-coloured plot
+# (e.g. the analytical benchmark) shares the paper's thermal identity with the station markers.
+TEMP_CMAP = mpl.colors.LinearSegmentedColormap.from_list(
+    "seapopym_thermal", [color(e) for e in ORDER if e != "MERGED"])   # BARENTS..HOT, cold->warm
+
+
+def temp_color(t: float, vmin: float = 0.0, vmax: float = 30.0):
+    """Colour for a temperature (deg C) on the paper's cold->warm station palette."""
+    f = (max(vmin, min(vmax, float(t))) - vmin) / (vmax - vmin)
+    return TEMP_CMAP(f)
+
+
 # ---- global matplotlib style (GMD-compliant) ------------------------------------------------
 def apply() -> None:
     mpl.rcParams.update({
@@ -107,7 +124,14 @@ def apply() -> None:
         "axes.titlesize": 10, "axes.titleweight": "bold",
         "axes.labelsize": 9,
         "xtick.labelsize": 8, "ytick.labelsize": 8,
-        "legend.fontsize": 8.5, "legend.frameon": False,
+        "legend.fontsize": 8.5,
+        # legends are frameless by default; a figure opts into a frame with legend(..., frameon=True),
+        # and THIS is then the single house style for that frame: rounded corners + light edge + white bg.
+        "legend.frameon": False,
+        "legend.fancybox": True,        # rounded corners (consistent across every framed legend)
+        "legend.edgecolor": "0.7",
+        "legend.facecolor": "white",
+        "legend.framealpha": 0.95,
         "figure.titlesize": 11, "figure.titleweight": "bold",
         "axes.linewidth": 0.8,
         "axes.spines.top": False, "axes.spines.right": False,

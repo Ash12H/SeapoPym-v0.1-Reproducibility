@@ -25,7 +25,7 @@ from matplotlib.ticker import FuncFormatter
 from seapopym_repro import figstyle as fs, paths
 
 # colour-blind-safe (distinguished also by plot type): neutral obs, blue LMTL, vermillion SeapoPym
-C_OBS, C_LMTL, C_SEAPO = "0.35", "#0072B2", "#D55E00"
+C_OBS, C_LMTL, C_SEAPO = "0.35", fs.BLUE, fs.ORANGE
 T0, T1 = "2000-01-01", "2020-01-01"
 ST = {"HOT": ("HOT", 23.0), "BATS": ("BATS", 32.0)}   # display -> (station key, latitude)
 
@@ -89,7 +89,7 @@ for ax, (disp, (name, lat)) in zip(axes, ST.items()):
         ax.axhline(val, color=col, ls=":", lw=1.6, alpha=0.9)
     place_mean_labels(ax, [(o_m, C_OBS), (l_m, C_LMTL), (s_m, C_SEAPO)])   # right-frame values, anti-overlap
 
-    ax.set_title(f"{disp} ({lat:g}°N)", color=fs.color(name))
+    ax.set_title(disp, color="black")
     ax.set_ylabel(r"Biomass (g C m$^{-2}$)")
     ax.set_xlim(pd.Timestamp(T0), pd.Timestamp(T1))
     ax.xaxis.set_major_locator(mdates.YearLocator(2))
@@ -115,5 +115,5 @@ handles = [
     Line2D([0], [0], color=C_SEAPO, ls=":", lw=1.6, label="SeapoPym mean"),
 ]
 fig.tight_layout()
-fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.09))
+fig.legend(handles=handles, loc="lower center", ncol=3, frameon=True, bbox_to_anchor=(0.5, -0.09))
 fs.save(fig, "Figure_5", subdir=None)
