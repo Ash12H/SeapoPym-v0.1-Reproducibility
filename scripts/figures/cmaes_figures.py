@@ -3,13 +3,12 @@
 Reads ONLY the committed frozen products written by run_cmaes_seed_ensemble.py (the display
 contract — never a raw logbook, never a recomputation):
     cmaes/cmaes_seed_ensemble_l{L}.csv          per (exp, seed): best_nrmse + 5 recovered params
-    cmaes/cmaes_convergence_traces_l{L}.csv      per (exp, seed): best-so-far NRMSE vs evaluations
 
 Per-station colour + marker, typography, GMD widths and PDF+PNG saving all come from figstyle.py
-(single source of truth). Produces (rehearsal/figures/cmaes/, each as .pdf + .png):
-    cmaes_convergence       best-so-far NRMSE vs evaluations, all seeds, one panel per experiment
+(single source of truth). Produces (figures/cmaes/, each as .pdf + .png):
     cmaes_recovery_values   recovered parameter values per experiment (per-seed strip + best + ref)
     cmaes_recovery_error    MAPE = |best - ref| / |ref| * 100 of the best individual (beeswarm, log y)
+(Convergence moved to scripts/figures/fig07_convergence.py -> Figure_7.)
 
 Compare on PARAMETER RECOVERY vs reference, not on NRMSE (low NRMSE on warm stations is equifinality).
 Run: .venv/bin/python rehearsal/cmaes_figures.py
@@ -35,7 +34,6 @@ def _load_csv(pattern):
 
 
 d = _load_csv("cmaes_seed_ensemble_l*.csv")                  # recovery values
-traces = _load_csv("cmaes_convergence_traces_l*.csv")        # convergence trajectories
 LAM = int(d["lambda"].iloc[0])
 EXP = fs.order(set(d.experiment))                            # canonical order, only what's present
 NSEEDS = int(d.groupby("experiment").seed.nunique().max())
@@ -59,32 +57,7 @@ def beeswarm(yvals, ythr, xstep, max_lane=8):
     return offs
 
 
-# ---------------- Figure 1: convergence (all seeds, one panel per experiment) ----------------
-def fig_convergence():
-    fig, axes = plt.subplots(2, 4, figsize=(fs.WIDTH_FULL, 0.62 * fs.WIDTH_FULL),
-                             sharex=True, sharey=True, squeeze=False)
-    axes = axes.ravel()
-    for k, exp in enumerate(EXP):
-        ax = axes[k]
-        for _, t in traces[traces.experiment == exp].groupby("seed"):
-            t = t.sort_values("evaluations")
-            ax.plot(t.evaluations, t.best_nrmse, lw=0.9, alpha=0.55, color=fs.color(exp),
-                    solid_capstyle="round")
-        ax.set_xscale("log"); ax.set_yscale("log")
-        ax.set_title(fs.label(exp), color=fs.color(exp), pad=3)
-        ax.grid(True, which="both", alpha=0.22, linewidth=0.5)
-    for j in range(len(EXP), len(axes)):
-        axes[j].axis("off")
-    if len(EXP) < len(axes):                 # top-row panel above an empty cell keeps its own x ticks
-        axes[len(EXP) - 1].tick_params(labelbottom=True)
-    fig.supxlabel("model evaluations", fontsize=9)
-    fig.supylabel("best-so-far NRMSE", fontsize=9)
-    fig.tight_layout()
-    fs.save(fig, "cmaes_convergence")
-    plt.close(fig)
-
-
-# ---------------- Figure 2: recovered parameter values (per-seed strip + best + reference) ----------------
+# ---------------- recovered parameter values (per-seed strip + best + reference) ----------------
 def fig_recovery_values():
     best_row = d.loc[d.groupby("experiment").best_nrmse.idxmin().values].set_index("experiment")
     fig, axes = plt.subplots(1, 5, figsize=(fs.WIDTH_FULL, 0.34 * fs.WIDTH_FULL))
@@ -110,7 +83,7 @@ def fig_recovery_values():
     plt.close(fig)
 
 
-# ---------------- Figure 3: recovery error (MAPE) of the best individual ----------------
+# ---------------- recovery error (MAPE) of the best individual ----------------
 def fig_recovery_error():
     best = {e: d.loc[d[d.experiment == e].best_nrmse.idxmin()] for e in EXP}
     fig, ax = plt.subplots(figsize=(0.72 * fs.WIDTH_FULL, 0.50 * fs.WIDTH_FULL))
@@ -134,6 +107,5 @@ def fig_recovery_error():
 
 
 if __name__ == "__main__":
-    fig_convergence()
     fig_recovery_values()
     fig_recovery_error()
