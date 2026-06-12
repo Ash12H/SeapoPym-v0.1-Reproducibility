@@ -4,7 +4,7 @@ For each experiment (MERGED + 6 stations), the best of the 10 seeded restarts: i
 vs model evaluations. log x-axis (the descent spans 8 -> ~10^4 evaluations); LINEAR y so the near-zero
 region is not exaggerated. Every experiment converges to the twin global optimum (NRMSE = 0) except
 HOT, whose best restart floors at ~0.07 (its information-limited structural minimum). Lines are layered
-fastest-to-converge in front. The per-seed spread is shown in Figure 8 (recovery).
+earliest-to-stop (fewest evaluations to termination) in front. The per-seed spread is in Figure 8.
 
 Reads ONLY the committed product products/cmaes_convergence_traces_l8.csv (frozen by
 scripts/experiments/run_cmaes_seed_ensemble.py).
@@ -33,15 +33,15 @@ def best_trajectory(exp):
 trajs = {e: best_trajectory(e) for e in ORDER}
 
 
-def converged_at(e, thresh=0.1):
-    """Evaluations to first reach NRMSE <= thresh (best-so-far is monotone, so a clean crossing)."""
-    ev, b = trajs[e]
-    below = ev[b <= thresh]
-    return below[0] if len(below) else float("inf")
+def stop_eval(e):
+    """Evaluations at which CMA-ES terminated for this experiment (the best trajectory's last point;
+    trajectories are sorted by evaluations, so ev[-1] is the stop). Earlier stop -> drawn in front."""
+    ev, _ = trajs[e]
+    return ev[-1]
 
 
 fig, ax = plt.subplots(figsize=(0.78 * fs.WIDTH_FULL, 0.52 * fs.WIDTH_FULL))
-for rank, e in enumerate(sorted(ORDER, key=converged_at)):   # fastest to converge -> foreground
+for rank, e in enumerate(sorted(ORDER, key=stop_eval)):   # earliest stop -> foreground
     ev, b = trajs[e]
     ax.plot(ev, b, color=fs.color(e), lw=2.4 if e == "MERGED" else 1.8,
             zorder=5 + len(ORDER) - rank, solid_capstyle="round")
