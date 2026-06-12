@@ -45,6 +45,20 @@ def rmse(a, b):
     return float(np.sqrt(np.mean((a[m] - b[m]) ** 2)))
 
 
+def place_mean_labels(ax, means, min_frac=0.07):
+    """Print each mean value just outside the right frame, nudged apart vertically if too close
+    (the two model means nearly coincide, so their labels would otherwise overlap)."""
+    ymin, ymax = ax.get_ylim()
+    gap = min_frac * (ymax - ymin)
+    order = sorted(range(len(means)), key=lambda i: means[i][0])
+    ys = [means[i][0] for i in order]
+    for k in range(1, len(ys)):
+        ys[k] = max(ys[k], ys[k - 1] + gap)   # push up to keep a minimum separation
+    for k, i in enumerate(order):
+        ax.text(1.008, ys[k], f"{means[i][0]:.2f}", transform=ax.get_yaxis_transform(),
+                color=means[i][1], va="center", ha="left", fontweight="bold", clip_on=False)
+
+
 fig, axes = plt.subplots(2, 1, figsize=(fs.WIDTH_FULL, 0.62 * fs.WIDTH_FULL), sharex=True)
 print(f"{'station':8s}{'RMSE transport (0D-2D)':>24s}{'RMSE model-obs':>18s}{'ratio':>8s}")
 for ax, (disp, (name, lat)) in zip(axes, ST.items()):
@@ -57,12 +71,10 @@ for ax, (disp, (name, lat)) in zip(axes, ST.items()):
     ax.plot(lm.index, lm.values, color=C_LMTL, lw=1.1, label="SEAPODYM-LMTL (2D, transport)")
     ax.plot(sp.index, sp.values, color=C_SEAPO, lw=1.1, ls="--", label="SeapoPym (0D, reference)")
 
-    o_m, l_m = obs.biomass_gC_m2.mean(), float(lm.mean())   # obs + SEAPODYM-LMTL total means
-    ax.axhline(o_m, color=C_OBS, ls=":", lw=1.6, alpha=0.9)
-    ax.axhline(l_m, color=C_LMTL, ls=":", lw=1.6, alpha=0.9)
-    for val, col in [(o_m, C_OBS), (l_m, C_LMTL)]:   # mean printed just outside the right frame
-        ax.text(1.008, val, f"{val:.2f}", transform=ax.get_yaxis_transform(),
-                color=col, va="center", ha="left", fontweight="bold", clip_on=False)
+    o_m, l_m, s_m = obs.biomass_gC_m2.mean(), float(lm.mean()), float(sp.mean())   # total means
+    for val, col in [(o_m, C_OBS), (l_m, C_LMTL), (s_m, C_SEAPO)]:
+        ax.axhline(val, color=col, ls=":", lw=1.6, alpha=0.9)
+    place_mean_labels(ax, [(o_m, C_OBS), (l_m, C_LMTL), (s_m, C_SEAPO)])   # right-frame values, anti-overlap
 
     ax.set_title(f"{disp} ({lat:g}°N)", color=fs.color(name))
     ax.set_ylabel(r"Biomass (g C m$^{-2}$)")
@@ -85,6 +97,7 @@ handles = [
     Line2D([0], [0], color=C_SEAPO, lw=1.5, ls="--", label="SeapoPym (0D, reference)"),
     Line2D([0], [0], color=C_OBS, ls=":", lw=1.6, label="obs mean"),
     Line2D([0], [0], color=C_LMTL, ls=":", lw=1.6, label="SEAPODYM-LMTL mean"),
+    Line2D([0], [0], color=C_SEAPO, ls=":", lw=1.6, label="SeapoPym mean"),
 ]
 axes[0].legend(handles=handles, loc="upper right", ncol=2, frameon=True, framealpha=0.95,
                facecolor="white", edgecolor="0.7")
