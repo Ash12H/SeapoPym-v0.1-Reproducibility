@@ -6,7 +6,8 @@ lines (obs, LMTL). Message: the two model means nearly coincide (transport gap ~
 sits apart (structural gap) -> 0D-2D error << model-obs error, quantified by the printed RMSEs.
 
 Reads ONLY committed inputs (turnkey, no SeapoPym-Data, no framework):
-  - data/insitu_zooplankton_obs.csv      extracted daily-mean in-situ obs (scripts/data/extract_insitu_observations.py)
+  - data/insitu_zooplankton_obs.csv      daily-mean in-situ HOT/BATS obs, COMMITTED (derived from the
+                                         SeapoPym-Data release; dry mass x 0.4 -> g C m-2)
   - data/stations.zarr ('zooc')          SEAPODYM-LMTL (2D, with transport)
   - data/pseudo_observations.zarr        SeapoPym (0D, reference parameters)
 Output : figures/Figure_5.{pdf,png}
