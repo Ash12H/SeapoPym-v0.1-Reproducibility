@@ -43,7 +43,7 @@ def stop_eval(e):
 fig, ax = plt.subplots(figsize=(0.78 * fs.WIDTH_FULL, 0.52 * fs.WIDTH_FULL))
 for rank, e in enumerate(sorted(ORDER, key=stop_eval)):   # earliest stop -> foreground
     ev, b = trajs[e]
-    ax.plot(ev, b, color=fs.color(e), lw=2.4 if e == "MERGED" else 1.8,
+    ax.plot(ev, b, color=fs.color(e), lw=2.0 if e == "MERGED" else 1.8,
             zorder=5 + len(ORDER) - rank, solid_capstyle="round")
 
 ax.set_xscale("log")
