@@ -37,12 +37,17 @@ import cma  # pycma — Hansen's reference CMA-ES (standard termination criteria
 from dask.distributed import Client
 
 from seapopym_repro import experiment as ga, paths
+from seapopym_repro.metrics import COMPARATORS
 from seapopym.configuration.no_transport import KernelParameter
 from seapopym.model.no_transport_model import NoTransportSpaceOptimizedLightModel
 from seapopym_optimization.algorithm.genetic_algorithm.evaluation_strategies import DistributedEvaluation
 from seapopym_optimization.configuration_generator import NoTransportConfigurationGenerator
 from seapopym_optimization.cost_function import CostFunction, TimeSeriesScoreProcessor, nrmse_std_comparator
 from seapopym_optimization.functional_group import FunctionalGroupSet
+
+# Available cost metrics: the framework's PROVEN nrmse_std for the default (byte-identical to the frozen
+# products) + the diagnostic comparators (nrmse_mean / rmse / mae / nmae) for alternative-cost runs.
+COMP = {**COMPARATORS, "nrmse_std": nrmse_std_comparator}
 
 EXPERIMENTS = ["BARENTS", "PAPA", "Bay_of_Biscay", "BATS", "Canaries", "HOT", "MERGED"]
 SIGMA0, NGEN = 0.30, 1000                            # NGEN is a backstop; convergence is sigma<1e-3 (set by main)
@@ -104,19 +109,20 @@ def best_of_logbook(out):
     return float(-wf.max()), {k: float(b[k]) for k in ga.PARAM_KEYS}, int(df.index.get_level_values("Generation").max())
 
 
-def build_convergence_traces(lam, experiments, ndown=120):
+def build_convergence_traces(lam, experiments, mtag="", ndown=120):
     """Freeze the committed convergence PRODUCT from the per-seed logbooks (the display contract).
 
-    For every (experiment, seed) parquet: best-so-far NRMSE per generation, mapped to model
+    For every (experiment, seed) parquet: best-so-far cost per generation, mapped to model
     evaluations = (gen+1)*lam, then log-spaced-downsampled to <= `ndown` points (the figure is
     log-log, so this is visually lossless) — small enough to commit as CSV while the heavy parquets
-    stay gitignored. Output (cols: experiment, seed, evaluations, best_nrmse):
-        cmaes/cmaes_convergence_traces_l{lam}.csv
+    stay gitignored. `mtag` namespaces by metric ("" for the default nrmse_std). Output
+    (cols: experiment, seed, evaluations, best_nrmse — the column name stays best_nrmse for any metric):
+        cmaes/cmaes_convergence_traces_l{lam}{mtag}.csv
     """
     wf = ("Weighted_fitness", "Weighted_fitness")
     rows = []
     for exp in experiments:
-        for p in sorted(CMA_SEED_DIR.glob(f"ga_logbook_{exp}_lambda{lam}_seed*.parquet")):
+        for p in sorted(CMA_SEED_DIR.glob(f"ga_logbook_{exp}_lambda{lam}{mtag}_seed*.parquet")):
             seed = int(p.stem.split("seed")[-1])
             per_gen = pd.read_parquet(p)[wf].groupby(level="Generation").max().sort_index()
             best = -per_gen.cummax().to_numpy()
@@ -130,14 +136,14 @@ def build_convergence_traces(lam, experiments, ndown=120):
             for i in idx:
                 rows.append({"experiment": exp, "seed": seed,
                              "evaluations": int(evals[i]), "best_nrmse": float(best[i])})
-    out = PRODUCTS / f"cmaes_convergence_traces_l{lam}.csv"
+    out = PRODUCTS / f"cmaes_convergence_traces_l{lam}{mtag}.csv"
     pd.DataFrame(rows).to_csv(out, index=False)
     print(f"froze convergence traces -> {out.name} ({len(rows)} rows, "
           f"{len({(r['experiment'], r['seed']) for r in rows})} traces)", flush=True)
     return out
 
 
-def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen):
+def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen, comparator, mtag):
     observations = ga.build_observations(exp, stations_meta)
     obs_names = [o.name for o in observations]
     fg_set = FunctionalGroupSet(ga.functional_groups(params["model_parameters"]["bounds"]))
@@ -148,7 +154,7 @@ def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen
     cost = CostFunction(
         configuration_generator=NoTransportConfigurationGenerator(model_class=NoTransportSpaceOptimizedLightModel),
         functional_groups=fg_set, forcing=forcing, kernel=KernelParameter(biomass_solver="implicit"),
-        observations=observations, processor=TimeSeriesScoreProcessor(comparator=nrmse_std_comparator),
+        observations=observations, processor=TimeSeriesScoreProcessor(comparator=comparator),
     )
     # scatter big read-only data to workers ONCE (broadcast); avoids per-generation re-transmit ->
     # memory growth + leaked semaphores. Mirrors GeneticAlgorithmFactory.create_distributed.
@@ -159,7 +165,7 @@ def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen
 
     rows, t0 = [], time.time()
     for seed in seeds:
-        out = CMA_SEED_DIR / f"ga_logbook_{exp}_lambda{lam}_seed{seed}.parquet"  # namespaced by lambda
+        out = CMA_SEED_DIR / f"ga_logbook_{exp}_lambda{lam}{mtag}_seed{seed}.parquet"  # namespaced by lambda + metric
         if out.exists():                              # per-seed RESUME (robust restart signal)
             nrmse, prm, stop_gen = best_of_logbook(out)
             stop_reason = "reuse"
@@ -172,10 +178,10 @@ def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen
                      "stop_gen": stop_gen, "cap_hit": cap, **prm})
         print(f"    {exp:14s} seed {seed:3d} (λ={lam}) | NRMSE={nrmse:.4f} | stop_gen={stop_gen}"
               + (" CAP!" if cap else "") + f" | stop={stop_reason}", flush=True)
-    # copy the best seed's logbook to the canonical name read by the figure scripts
+    # copy the best seed's logbook to the canonical name read by the figure scripts (metric-namespaced)
     best = min(rows, key=lambda r: r["best_nrmse"])
-    shutil.copyfile(CMA_SEED_DIR / f"ga_logbook_{exp}_lambda{lam}_seed{best['seed']}.parquet",
-                    CMA_DIR / f"ga_logbook_{exp}.parquet")
+    shutil.copyfile(CMA_SEED_DIR / f"ga_logbook_{exp}_lambda{lam}{mtag}_seed{best['seed']}.parquet",
+                    CMA_DIR / f"ga_logbook_{exp}{mtag}.parquet")
     vals = [r["best_nrmse"] for r in rows]
     print(f"  {exp:14s} | best={min(vals):.4f} median={np.median(vals):.4f} max={max(vals):.4f} "
           f"| cap_hit={sum(r['cap_hit'] for r in rows)}/{len(rows)} | {(time.time()-t0)/60:.1f} min", flush=True)
@@ -196,6 +202,8 @@ def main():
     ap.add_argument("--memory-limit", default="4GB", help="per-worker memory, single station (default 4GB)")
     ap.add_argument("--merged-workers", type=int, default=6, help="process workers for MERGED (default 6)")
     ap.add_argument("--merged-mem", default="6GB", help="per-worker memory for MERGED (default 6GB)")
+    ap.add_argument("--metric", default="nrmse_std", choices=sorted(COMP),
+                    help="cost comparator (default nrmse_std = the frozen products); others namespace outputs by metric")
     ap.add_argument("--freeze", action="store_true",
                     help="rebuild the committed products (convergence-traces CSV) from existing per-seed logbooks; no optimisation")
     args = ap.parse_args()
@@ -203,19 +211,22 @@ def main():
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()] if args.seeds else list(range(args.n_seeds))
     lam = args.lam
     NGEN = args.ngen                                          # used by run_seed (module global)
-    results_csv = PRODUCTS / f"cmaes_seed_ensemble_l{lam}.csv"   # committed product, namespaced by lambda
+    metric = args.metric                                     # cost comparator key
+    comparator = COMP[metric]
+    mtag = "" if metric == "nrmse_std" else f"_{metric}"      # default keeps the existing filenames byte-stable
+    results_csv = PRODUCTS / f"cmaes_seed_ensemble_l{lam}{mtag}.csv"   # committed product, namespaced by lambda + metric
 
     PRODUCTS.mkdir(parents=True, exist_ok=True)
     CMA_DIR.mkdir(parents=True, exist_ok=True)
     CMA_SEED_DIR.mkdir(parents=True, exist_ok=True)
     if args.freeze:                                          # rebuild committed products only (no runs)
-        build_convergence_traces(lam, experiments)
+        build_convergence_traces(lam, experiments, mtag)
         return
     params = yaml.safe_load(open(ga.ROOT / "parameters.yaml"))
     stations_meta = json.load(open(ga.DATA_DIR / "stations_coords.json"))
     forcing = ga.build_forcing()
-    print(f"CMA-ES ensemble: λ={lam} | NGEN cap={NGEN} | {len(seeds)} seeds | experiments={experiments}", flush=True)
-    print(f"  per-seed resume on logbooks/cmaes/seeds/ (lambda-namespaced) | CSV -> {results_csv.name}", flush=True)
+    print(f"CMA-ES ensemble: λ={lam} | metric={metric} | NGEN cap={NGEN} | {len(seeds)} seeds | experiments={experiments}", flush=True)
+    print(f"  per-seed resume on results_raw/cmaes/seeds/ (lambda+metric-namespaced) | CSV -> {results_csv.name}", flush=True)
 
     all_rows = []
     for exp in experiments:  # fresh client PER EXPERIMENT (releases workers + scattered data between exps)
@@ -223,7 +234,7 @@ def main():
                   if exp == "MERGED"
                   else Client(n_workers=args.workers, threads_per_worker=1, memory_limit=args.memory_limit))
         try:
-            all_rows.extend(run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, NGEN))
+            all_rows.extend(run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, NGEN, comparator, mtag))
             pd.DataFrame(all_rows).to_csv(results_csv, index=False)   # checkpoint after each experiment
         finally:
             client.close()
@@ -237,7 +248,7 @@ def main():
     total_cap = int(df["cap_hit"].sum())
     print(f"\nseeds hitting NGEN cap ({NGEN}): {total_cap}/{len(df)} "
           + ("(OK — convergence governs)" if total_cap == 0 else "(some capped → raise --ngen)"), flush=True)
-    build_convergence_traces(lam, experiments)               # freeze the committed convergence product
+    build_convergence_traces(lam, experiments, mtag)         # freeze the committed convergence product
 
 
 if __name__ == "__main__":
