@@ -27,6 +27,9 @@ ap.add_argument("--metric", default=paths.PRODUCTION_METRIC, help="cost metric w
 METRIC = ap.parse_args().metric
 YLABEL = {"nrmse_std": "best-so-far NRMSE (std-norm.)", "nrmse_mean": "best-so-far NRMSE (mean-norm.)",
           "rmse": "best-so-far RMSE", "mae": "best-so-far MAE", "nmae": "best-so-far nMAE"}.get(METRIC, "best-so-far cost")
+# legend title: signals at a glance that every target is a synthetic (twin) observation, not real data.
+# one term for the whole paper -- keep in sync with the manuscript (currently "pseudo-observations").
+TARGET_LABEL = "Synthetic observations"
 
 traces = pd.read_csv(paths.cmaes_product("convergence_traces", METRIC))
 ORDER = fs.order(traces.experiment.unique())   # MERGED + 6 stations, cold -> warm
@@ -62,6 +65,8 @@ ax.set_ylabel(YLABEL)
 ax.grid(True, which="both", alpha=0.22, linewidth=0.5)
 
 handles = [Line2D([0], [0], color=fs.color(e), lw=2.2, label=fs.label(e)) for e in ORDER]
-ax.legend(handles=handles, loc="upper right", ncol=2, fontsize=7.5, frameon=True)
+leg = ax.legend(handles=handles, loc="upper right", ncol=2, fontsize=7.5, frameon=True,
+                title=TARGET_LABEL, title_fontsize=8)
+leg.get_title().set_fontweight("bold")
 fig.tight_layout()
 fs.save(fig, "Figure_7", subdir=None)
