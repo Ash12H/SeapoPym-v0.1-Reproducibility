@@ -3,7 +3,7 @@
 Two panels (HOT, BATS), linear y. Per panel: in-situ daily-mean zooplankton biomass (scatter, P5-P95
 clipped), SEAPODYM-LMTL (2D, with transport), SeapoPym (0D, reference params), and dotted total-mean
 lines (obs, LMTL). Message: the two model means nearly coincide (transport gap ~0) while the obs mean
-sits apart (structural gap) -> 0D-2D error << model-obs error, quantified by the printed RMSEs.
+sits apart (structural gap) -> 0D-2D error << LMTL-obs error, quantified by the printed RMSEs.
 
 Reads ONLY committed inputs (turnkey, no SeapoPym-Data, no framework):
   - data/insitu_zooplankton_obs.csv      daily-mean in-situ HOT/BATS obs, COMMITTED (derived from the
@@ -74,7 +74,7 @@ def place_mean_labels(ax, means, min_frac=0.07):
 
 
 fig, axes = plt.subplots(2, 1, figsize=(fs.WIDTH_FULL, 0.62 * fs.WIDTH_FULL), sharex=True)
-print(f"{'station':8s}{'RMSE transport (0D-2D)':>24s}{'RMSE model-obs':>18s}{'ratio':>8s}")
+print(f"{'station':8s}{'RMSE transport (0D-2D)':>24s}{'RMSE LMTL-obs':>18s}{'ratio':>8s}")
 for ax, (disp, (name, lat)) in zip(axes, ST.items()):
     obs = load_obs(disp)
     lm = stations.zooc.sel(station=name).to_pandas()
@@ -99,11 +99,11 @@ for ax, (disp, (name, lat)) in zip(axes, ST.items()):
     ax.yaxis.set_minor_formatter(FuncFormatter(_log_label))
     ax.grid(True, which="both", alpha=0.25)
 
-    # quantification: transport gap (0D vs 2D) vs structural gap (model vs obs)
-    sp_at_obs = sp.reindex(pd.to_datetime(obs.time.values), method="nearest").values
+    # quantification: transport gap (SeapoPym vs SEAPODYM-LMTL) vs structural gap (SEAPODYM-LMTL vs obs)
     lm_on_sp = lm.reindex(sp.index, method="nearest").values
+    lm_at_obs = lm.reindex(pd.to_datetime(obs.time.values), method="nearest").values
     r_transport = rmse(sp.values, lm_on_sp)
-    r_obs = rmse(sp_at_obs, obs.biomass_gC_m2.values)
+    r_obs = rmse(lm_at_obs, obs.biomass_gC_m2.values)
     print(f"{disp:8s}{r_transport:24.3f}{r_obs:18.3f}{r_obs / r_transport:8.1f}")
 
 axes[-1].set_xlabel("Year")
