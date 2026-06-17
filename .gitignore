@@ -41,3 +41,4 @@ __pycache__/
 # Local review fork of the framework (a separate git repo, cloned alongside;
 # referenced by pyproject's [tool.uv.sources] while the PR is un-merged)
 dependencies/
+tmp/
