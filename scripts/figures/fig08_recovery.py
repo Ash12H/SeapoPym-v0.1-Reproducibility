@@ -1,6 +1,6 @@
 """Figure 8 — CMA-ES parameter recovery, two interchangeable renderings of the same data.
 
-This script produces BOTH versions from the same seed-ensemble product (pick one with --variant):
+This script produces THREE renderings from the same seed-ensemble product (pick one with --variant, default all):
   - TABLE (stem, e.g. Figure_8): rows = experiments (MERGED + 6 stations, MERGED-first then cold->warm),
     columns = the five model parameters. Each cell shows, in black, the BEST-of-ensemble value with its
     SIGNED relative error vs the twin reference in parentheses, (best - ref) / |ref| x 100; and below in
@@ -11,6 +11,10 @@ This script produces BOTH versions from the same seed-ensemble product (pick one
     (cursor), per experiment; the reference is the 0 % line. Panel 6: the mean absolute relative error
     over the five parameters. symlog keeps the well-recovered cluster near 0 readable while the large
     equifinal errors stay on the same axis.
+  - TWO HEATMAPS ({stem}_heatmaps): side by side, both expressed in % of the reference so the five
+    parameters share one scale. LEFT = recovery, |best - reference|; RIGHT = restart spread, std of the
+    seeds. Light = good (recovered / tight), dark = far / wide. Equifinality reads as a cell that is pale
+    on the left (the best member sits on the reference) yet dark on the right (the restarts disagree).
 
 Both tell the same story: E / lambda_0 / gamma_lambda land within ~1 % with tiny spread (identifiable);
 tr_0 / gamma_tr scatter to large errors with wide spread at the warm stations (equifinal recruitment).
@@ -19,8 +23,8 @@ The table is compact for the paper; the plot exposes the per-seed dispersion.
 Reads ONLY the seed-ensemble product for the production cost (paths.PRODUCTION_METRIC), frozen by
 run_cmaes_seed_ensemble.py. Use --metric to render another cost's run. Compare on PARAMETER RECOVERY
 vs reference, NOT on the cost (a low cost on warm stations is equifinality, not recovery).
-Output : figures/{stem}.{pdf,png} (table)  and  figures/{stem}_relerr.{pdf,png} (plot)
-Run    : .venv/bin/python scripts/figures/fig08_recovery.py [--metric nrmse_mean] [--variant both]
+Output : figures/{stem}.{pdf,png} (table), {stem}_relerr.{pdf,png} (plot), {stem}_heatmaps.{pdf,png}
+Run    : .venv/bin/python scripts/figures/fig08_recovery.py [--metric nrmse_mean] [--variant all]
 """
 from __future__ import annotations
 
@@ -29,14 +33,15 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.lines import Line2D
 
 from seapopym_repro import figstyle as fs, paths
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--metric", default=paths.PRODUCTION_METRIC, help="cost metric whose frozen run to plot")
-ap.add_argument("--variant", choices=["both", "table", "relerr"], default="both",
-                help="which rendering(s) to produce (default both)")
+ap.add_argument("--variant", choices=["all", "table", "relerr", "heatmaps"], default="all",
+                help="which rendering(s) to produce (default all: table + relerr plot + heatmaps)")
 ap.add_argument("--stem", default="Figure_8", help="output stem; the plot is saved as <stem>_relerr")
 ap.add_argument("--linthresh", type=float, default=10.0,
                 help="relerr plot: symlog linear band around 0, in %% (default 10, the recovery criterion)")
@@ -193,7 +198,72 @@ def render_relerr(stem):
     fs.save(fig, stem, subdir=None)
 
 
-if VARIANT in ("both", "table"):
+def render_heatmaps(stem):
+    """Two heatmaps side by side: recovery (|best - ref| / |ref|) and restart spread (std / |ref|), both
+    in % of the reference so the five parameters share one scale. Equifinality reads as a cell that is
+    WHITE on the left (the best member sits on the reference) yet dark on the right (the restarts disagree).
+    Colour is binned on the 10 % recovery criterion (white = on target / tight); the signed error or the
+    spread is printed in each cell, and each column header carries the parameter symbol over its reference."""
+    abs_err = np.array([[abs(best.loc[e, p] - REF[p]) / abs(REF[p]) * 100.0 for p in PARAM_ORDER] for e in EXP])
+    signed_err = np.array([[(best.loc[e, p] - REF[p]) / abs(REF[p]) * 100.0 for p in PARAM_ORDER] for e in EXP])
+    spread = np.array([[std.loc[e, p] / abs(REF[p]) * 100.0 for p in PARAM_ORDER] for e in EXP])
+
+    bounds = [0, 5, 10, 25, 50, 100]                       # % of reference; tied to the 10 % recovery criterion
+    reds = plt.get_cmap("Reds")
+    band = ["white"] + [reds(t) for t in np.linspace(0.30, 1.0, len(bounds) - 1)]   # white floor + red ramp
+    cmap = ListedColormap(band[:-1])                       # 5 interior bins (white + 4 reds)
+    cmap.set_over(band[-1])                                 # > 100 % = darkest red
+    norm = BoundaryNorm(bounds, ncolors=cmap.N)
+
+    def fmt_signed(v):
+        if round(v, 1) == 0:
+            return "0"                                       # exact recovery: drop the sign and the decimal
+        return f"{v:+.0f}" if abs(v) >= 10 else f"{v:+.1f}"
+
+    def fmt_pos(v):
+        if round(v, 1) == 0:
+            return "0"
+        return f"{v:.0f}" if v >= 10 else f"{v:.1f}"
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(fs.WIDTH_FULL, 0.50 * fs.WIDTH_FULL),
+                                   sharey=True, layout="constrained")
+    panels = [(axL, abs_err, signed_err, fmt_signed, "Relative error of the best member"),
+              (axR, spread, spread, fmt_pos, "Relative spread across restarts")]
+    for ax, colour_mat, text_mat, fmt, title in panels:
+        ax.imshow(colour_mat, cmap=cmap, norm=norm, aspect="auto")
+        ax.set_xticks([])                                    # parameter headers are drawn as custom text on top
+        ax.set_yticks(range(len(EXP)), [fs.label(e) for e in EXP])
+        ax.set_xticks(np.arange(-0.5, len(PARAM_ORDER), 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, len(EXP), 1), minor=True)
+        ax.grid(which="minor", color="0.7", linewidth=1.0)   # grey lines stay visible over white cells
+        ax.tick_params(which="both", length=0)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        for j, p in enumerate(PARAM_ORDER):                  # header: symbol (black) over its reference (grey), no "="
+            ax.text(j, 1.13, PLABEL[p], transform=ax.get_xaxis_transform(),
+                    ha="center", va="bottom", fontsize=11, clip_on=False)
+            ax.text(j, 1.02, f"{REF[p]:.4g}", transform=ax.get_xaxis_transform(),
+                    ha="center", va="bottom", fontsize=7.5, color="0.5", clip_on=False)
+        for i in range(len(EXP)):
+            for j in range(len(PARAM_ORDER)):
+                ax.text(j, i, fmt(text_mat[i, j]), ha="center", va="center", fontsize=7.5,
+                        color="white" if colour_mat[i, j] >= 25 else "0.1")
+        ax.set_title(title, fontsize=10, pad=42)
+    axR.tick_params(labelleft=False)                       # shared y-axis: station labels on the left only
+    for tl, e in zip(axL.get_yticklabels(), EXP):          # station identity = registry colour
+        tl.set_color(fs.color(e))
+        tl.set_fontweight("bold")
+
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+    cb = fig.colorbar(sm, ax=[axL, axR], extend="max", ticks=bounds, fraction=0.045, pad=0.02)
+    cb.set_label("deviation from reference (%)", fontsize=8)
+    cb.ax.tick_params(labelsize=7)
+    fs.save(fig, stem, subdir=None)
+
+
+if VARIANT in ("all", "table"):
     render_table(STEM)
-if VARIANT in ("both", "relerr"):
+if VARIANT in ("all", "relerr"):
     render_relerr(f"{STEM}_relerr")
+if VARIANT in ("all", "heatmaps"):
+    render_heatmaps(f"{STEM}_heatmaps")
