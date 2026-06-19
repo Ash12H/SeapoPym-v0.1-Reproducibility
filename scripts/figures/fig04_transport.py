@@ -20,12 +20,19 @@ import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
+from matplotlib.colors import LinearSegmentedColormap
 
 from seapopym_repro import figstyle as fs, paths
 
 BIOMASS_VMAX = 3.5   # g C m-2 (matches Figure 1a for a direct biomass comparison)
 RMSE_VMAX = 1.7      # g C m-2
 MAPE_VMAX = 100.0    # %
+
+# White-to-red sequential map: like "Reds" but with a genuinely pure-white zero,
+# so error-free regions read as white instead of pale pink. Shared by the RMSE
+# and MAPE panels for consistency.
+WHITE_REDS = LinearSegmentedColormap.from_list(
+    "white_reds", [(1.0, 1.0, 1.0), (0.94, 0.41, 0.29), (0.40, 0.0, 0.05)])
 
 maps = xr.open_dataset(paths.PRODUCTS / "transport_impact_maps.nc")
 bias_lim = round(float(np.nanpercentile(np.abs(maps["bias"].values), 98)), 2) or 1.0
@@ -40,9 +47,9 @@ def add_cyclic_point(da, lon_name="X"):
 PANELS = [
     {"key": "pred_mean", "cmap": "cividis", "vmin": 0,         "vmax": BIOMASS_VMAX, "extend": "max",
      "label": r"SeapoPym mean biomass (g C m$^{-2}$)",      "panel": "(a)"},
-    {"key": "rmse",      "cmap": "Reds",    "vmin": 0,         "vmax": RMSE_VMAX,    "extend": "max",
+    {"key": "rmse",      "cmap": WHITE_REDS, "vmin": 0,        "vmax": RMSE_VMAX,    "extend": "max",
      "label": r"Root mean square error (g C m$^{-2}$)",     "panel": "(b)"},
-    {"key": "mape",      "cmap": "Reds",    "vmin": 0,         "vmax": MAPE_VMAX,    "extend": "max",
+    {"key": "mape",      "cmap": WHITE_REDS, "vmin": 0,        "vmax": MAPE_VMAX,    "extend": "max",
      "label": "Mean absolute percentage error (%)",         "panel": "(c)"},
     {"key": "bias",      "cmap": "RdBu_r",  "vmin": -bias_lim, "vmax": bias_lim,     "extend": "both",
      "label": r"Bias (g C m$^{-2}$)",                       "panel": "(d)"},
