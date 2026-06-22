@@ -18,7 +18,7 @@ import pandas as pd
 from seapopym_repro import figstyle as fs, paths
 
 CHOSEN_METRICS = ["log10(mean)", "argmax"]
-METRIC_LABEL = {"log10(mean)": r"$\log_{10}$(mean biomass)", "argmax": "Peak timing\n(day of year)"}
+METRIC_LABEL = {"log10(mean)": "Magnitude\n" r"($\log_{10}$ mean biomass)", "argmax": "Peak timing\n(day of year)"}
 C_S1, C_ST = fs.BLUE, fs.ORANGE   # S1 vs ST, same blue/orange pair as Figure 5
 
 d = pd.read_csv(paths.PRODUCTS / "sobol_indices.csv")
