@@ -37,7 +37,7 @@ plain = FuncFormatter(lambda value, _: f"{value:g}")  # 1, 10, 100, 1000 instead
 ax.xaxis.set_major_formatter(plain)
 ax.yaxis.set_major_formatter(plain)
 ax.set_xlabel("Elapsed time (days)")
-ax.set_ylabel(r"Biomass (mg m$^{-2}$)")
+ax.set_ylabel(r"Biomass (mg C m$^{-2}$)")
 ax.grid(True, which="both", alpha=0.3, linewidth=0.5)
 
 # Legend: colour = temperature, dashed = analytical asymptote B = R / lambda.
