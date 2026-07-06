@@ -43,12 +43,15 @@ def build_forcing():
             npp[c].attrs["axis"] = a
     temperature.attrs["units"] = "degC"
     npp.attrs["units"] = "mg/m^2/day"
-    ic = xr.open_zarr(DATA_DIR / "initial_conditions.zarr").load()
+    # Cold start: every candidate runs its own 1998-1999 spin-up (the forcing spans 1998-2019) and
+    # the cost is scored only on 2000-2019 (the observation window). This matches how the twin target
+    # was generated (a cold-start reference run in gen_pseudo_observations, no frozen initial state),
+    # so the reference parameters reproduce the target exactly at every station, BARENTS included.
+    # The former shared initial_conditions.zarr restart is dropped: it left a decaying restart
+    # transient at the slowest station (BARENTS, ~4e-4 on the cost floor).
     return ForcingParameter(
         temperature=ForcingUnit(forcing=temperature),
         primary_production=ForcingUnit(forcing=npp),
-        initial_condition_biomass=ForcingUnit(forcing=ic.biomass),
-        initial_condition_production=ForcingUnit(forcing=ic.preproduction),
     )
 
 

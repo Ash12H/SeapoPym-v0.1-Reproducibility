@@ -3,9 +3,9 @@
 For each experiment (MERGED + 6 stations), the best of the 20 seeded restarts: its best-so-far cost
 vs model evaluations. log x-axis (the descent spans 8 -> ~10^4 evaluations); LINEAR y so the near-zero
 region is not exaggerated. Every experiment converges to the twin global optimum (cost = 0) except
-HOT, whose best restart floors above zero (its information-limited structural minimum). Lines are
-layered earliest-to-stop (fewest evaluations to termination) in front. The per-seed spread is in the
-convergence-dispersion figure.
+HOT, whose restarts all floor near 1e-2. Because cost 0 is attainable by construction, this plateau is
+a search that does not reach the optimum, not a structural floor. Lines are layered earliest-to-stop
+(fewest evaluations to termination) in front. The per-seed spread is in the convergence-dispersion figure.
 
 Reads ONLY the committed convergence-traces product for the production cost (paths.PRODUCTION_METRIC),
 frozen by scripts/experiments/run_cmaes_seed_ensemble.py. Use --metric to render another cost's run.

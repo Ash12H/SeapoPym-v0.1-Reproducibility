@@ -7,18 +7,19 @@ Modelling & Software): pick the smallest sufficient N **mechanically** (no eyeba
         (a) max bootstrap 95% CI half-width of S1 and ST   <= CI_THRESHOLD   (default 0.05)
         (b) max |index(N) - index(previous N)|  (S1 and ST) <= STAB_THRESHOLD (default 0.05)
 
-The decision is taken on the metrics we actually REPORT = the 3 ROBUST ones
-(log10(mean), CV, circular). The 3 RAW heavy-tailed metrics (mean, variance, argmax) are
-still computed and shown for context, but they are NOT used to gate N: the raw `variance`
-Sobol indices barely converge even at large N (heavy tail B~R/lambda) — which is exactly
-the methodological reason for using robust metrics.
+The decision is taken on the two descriptors the paper actually REPORTS in Figure 6:
+log10(mean) for the biomass magnitude and argmax (day of year of the maximum) for the
+seasonal timing. The magnitude uses log10 because the raw mean/variance are heavy-tailed
+(B~R/lambda) and their Sobol indices barely converge even at large N. The other computed
+metrics (mean, variance, CV, and circular, the cyclic treatment of argmax) are kept for
+context but do NOT gate N.
 
 Importable: `load_tables()`, `convergence_frame()`, `indices_table()` are reused by the
 adaptive orchestrator run_sobol_convergence.py.
 
 Outputs (rehearsal/sobol/conv/):
-    convergence_metrics.csv      N, total_sims, ci_reported, ci_raw, delta_reported, converged
-    Figure_6b_convergence.png    ci (robust & raw) and delta vs total simulations, with threshold
+    convergence_metrics.csv      N, total_sims, ci_reported, ci_context, delta_reported, converged
+    Figure_6b_convergence.png    ci (reported & context) and delta vs total simulations, with threshold
 """
 
 from __future__ import annotations
@@ -36,8 +37,8 @@ from seapopym_repro import paths
 CONV = paths.RESULTS_RAW / "sobol" / "conv"
 PERIOD_DAYS = 365.0
 STATIONS_ORDER = ["BARENTS", "PAPA", "Bay_of_Biscay", "Canaries", "BATS", "HOT"]
-REPORTED = ["log10(mean)", "CV", "circular"]   # metrics used for the convergence decision
-RAW = ["mean", "variance", "argmax"]           # kept for context, NOT used to gate N
+REPORTED = ["log10(mean)", "argmax"]           # the two descriptors reported in Figure 6; gate N on these
+CONTEXT = ["mean", "variance", "CV", "circular"]  # computed for context, NOT used to gate N
 
 
 def analyze(problem, calc2, y):
@@ -107,9 +108,9 @@ def convergence_frame(tables: dict[int, pd.DataFrame], ci: float, stab: float) -
     for N in sorted(tables):
         t = tables[N]
         rep = t[t.metric.isin(REPORTED)]
-        raw = t[t.metric.isin(RAW)]
+        ctx = t[t.metric.isin(CONTEXT)]
         ci_rep = float(max(rep.S1_conf.max(), rep.ST_conf.max()))
-        ci_raw = float(max(raw.S1_conf.max(), raw.ST_conf.max()))
+        ci_ctx = float(max(ctx.S1_conf.max(), ctx.ST_conf.max()))
         if prev is None:
             delta = np.nan
         else:
@@ -118,7 +119,7 @@ def convergence_frame(tables: dict[int, pd.DataFrame], ci: float, stab: float) -
             delta = float(np.maximum((m.S1 - m.S1_p).abs(), (m.ST - m.ST_p).abs()).max())
         converged = (ci_rep <= ci) and np.isfinite(delta) and (delta <= stab)
         rows.append({"N": N, "total_sims": int(t.total_sims.iloc[0]),
-                     "ci_reported": ci_rep, "ci_raw": ci_raw, "delta_reported": delta,
+                     "ci_reported": ci_rep, "ci_context": ci_ctx, "delta_reported": delta,
                      "converged": converged})
         prev = N
     return pd.DataFrame(rows)
@@ -137,7 +138,7 @@ def main():
     conv = convergence_frame(tables, args.ci, args.stab)
     CONV.mkdir(parents=True, exist_ok=True)
     conv.to_csv(CONV / "convergence_metrics.csv", index=False)
-    print("\n=== convergence (decision on REPORTED robust metrics) ===")
+    print("\n=== convergence (decision on reported descriptors: log10 mean, argmax) ===")
     print(conv.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     chosen = conv[conv.converged]
@@ -149,14 +150,14 @@ def main():
         print(f"\nNOT YET CONVERGED (CI<={args.ci}, stab<={args.stab}) — extend the sweep.")
 
     fig, ax = plt.subplots(figsize=(8, 5), dpi=200)
-    ax.plot(conv.total_sims, conv.ci_reported, "o-", color="#d62728", label="max CI half-width — robust (reported)")
-    ax.plot(conv.total_sims, conv.ci_raw, "^:", color="gray", label="max CI half-width — raw (context, not gated)")
-    ax.plot(conv.total_sims, conv.delta_reported, "s--", color="#1f77b4", label="max |Δindex| vs previous N — robust")
+    ax.plot(conv.total_sims, conv.ci_reported, "o-", color="#d62728", label="max CI half-width — reported (log10 mean, argmax)")
+    ax.plot(conv.total_sims, conv.ci_context, "^:", color="gray", label="max CI half-width — context (not gated)")
+    ax.plot(conv.total_sims, conv.delta_reported, "s--", color="#1f77b4", label="max |Δindex| vs previous N — reported")
     ax.axhline(args.ci, color="green", ls=":", lw=1.3, label=f"threshold = {args.ci}")
     ax.set_xscale("log")
     ax.set_xlabel("total simulations  (N × (D+2))")
     ax.set_ylabel("convergence metric")
-    ax.set_title("Sobol convergence (Sarrazin et al. 2016) — decision on robust metrics", fontweight="bold", fontsize=11)
+    ax.set_title("Sobol convergence (Sarrazin et al. 2016) — decision on reported descriptors", fontweight="bold", fontsize=11)
     if len(chosen):
         xs = int(chosen.iloc[0].total_sims)
         ax.axvline(xs, color="green", lw=1.4, alpha=0.8)

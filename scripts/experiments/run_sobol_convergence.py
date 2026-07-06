@@ -1,8 +1,8 @@
 """rehearsal/run_sobol_convergence.py — adaptive Sobol convergence + production in one.
 
 Runs the Sobol evaluation at an increasing sequence of sample sizes N, and after EACH N
-checks the mechanical convergence criterion (Sarrazin et al. 2016) on the REPORTED robust
-metrics. It STOPS at the first N that converges — so it never runs a needlessly large N —
+checks the mechanical convergence criterion (Sarrazin et al. 2016) on the two reported
+descriptors (log10 mean, argmax). It STOPS at the first N that converges — so it never runs a needlessly large N —
 and PROMOTES that point to the production Figure 6. Two birds, one stone: the converged
 convergence point IS the production sensitivity analysis (no separate 1e6 run).
 
@@ -55,7 +55,7 @@ def main():
         run_point(n, args.workers, args.batch_size)
         conv = convergence_frame(load_tables(), args.ci, args.stab)
         row = conv[conv.N == n]
-        print("\n--- convergence so far (robust metrics) ---", flush=True)
+        print("\n--- convergence so far (reported descriptors) ---", flush=True)
         print(conv.to_string(index=False, float_format=lambda x: f"{x:.4f}"), flush=True)
         if len(row) and bool(row.iloc[0].converged):
             chosen = n

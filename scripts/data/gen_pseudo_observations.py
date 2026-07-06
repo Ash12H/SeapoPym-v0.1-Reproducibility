@@ -1,16 +1,16 @@
-"""rehearsal/gen_pseudo_observations.py — twin-experiment pseudo-observations + initial
-conditions, generated with the IMPLICIT biomass solver.
+"""rehearsal/gen_pseudo_observations.py — twin-experiment pseudo-observations, generated with
+the IMPLICIT biomass solver.
 
 Mirrors notebooks/04_twin_experiments/01_generate_pseudo_observations.ipynb but runs SeapoPym
-with `biomass_solver="implicit"`. The twin experiment is self-referential: the GA fits with the
-implicit solver, so its target (pseudo-obs) and restart state (initial conditions) MUST be
-produced with the same solver — otherwise an NRMSE floor (~0.02-0.036) contaminates recovery.
+with `biomass_solver="implicit"`. The twin experiment is self-referential: the optimizer fits with
+the implicit solver, so its target (pseudo-obs) MUST be produced with the same solver — otherwise
+an NRMSE floor (~0.02-0.036) contaminates recovery.
 
-A single reference run (compute_initial_conditions=True) yields both:
+The reference run is a cold-start integration over the full 1998-2019 forcing; its 2000-2019 slice
+is the target. Every candidate later runs its own cold-start spin-up (experiment.build_forcing), so
+no frozen initial state is exported: the reference parameters reproduce this target at every station.
+
   data/pseudo_observations.zarr  (reference biomass at the 6 stations, analysis window)
-  data/initial_conditions.zarr   (spin-up state to restart GA-sampled runs from)
-
-NB: overwrites the existing (explicit) zarrs — they are gitignored and regenerable.
 
 Run: .venv/bin/python rehearsal/gen_pseudo_observations.py
 """
@@ -85,22 +85,13 @@ with NoTransportModel.from_configuration(configuration=config) as model:
     model.run()
     model.state.compute()
     biomass = model.state.biomass.load().copy()
-    initial_conditions = model.export_initial_conditions().load().copy()
 
 # --- persist --------------------------------------------------------------------------------
 pseudo_obs_path = DATA / "pseudo_observations.zarr"
-ic_path = DATA / "initial_conditions.zarr"
 
 biomass_obs = biomass.sel(T=slice(T_ANALYSIS_START, T_END), functional_group=0, drop=True)
 biomass_obs.to_dataset(name="observed_biomass").to_zarr(pseudo_obs_path, mode="w", zarr_format=2)
 
-initial_conditions = initial_conditions.drop_vars([v for v in ("T",) if v in initial_conditions.coords])
-if "flag_values" in initial_conditions.functional_group.attrs:
-    initial_conditions.functional_group.attrs["flag_values"] = str(
-        initial_conditions.functional_group.attrs["flag_values"])
-initial_conditions.to_zarr(ic_path, mode="w", zarr_format=2)
-
-for p in (pseudo_obs_path, ic_path):
-    mb = sum(f.stat().st_size for f in p.rglob("*") if f.is_file()) / 1e6
-    print(f"  wrote {p.name}: {mb:.2f} MB")
+mb = sum(f.stat().st_size for f in pseudo_obs_path.rglob("*") if f.is_file()) / 1e6
+print(f"  wrote {pseudo_obs_path.name}: {mb:.2f} MB")
 print("done (implicit pseudo-observations + initial conditions).")

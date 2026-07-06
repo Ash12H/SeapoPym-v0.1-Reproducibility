@@ -5,7 +5,10 @@ This script produces FOUR renderings from the same seed-ensemble product (pick o
     columns = the five model parameters. Each cell shows, in black, the BEST-of-ensemble value with its
     SIGNED relative error vs the twin reference in parentheses, (best - ref) / |ref| x 100; and below in
     grey, the std across the seeded restarts (the identifiability spread). Each column header carries the
-    parameter symbol and its reference value. The MERGED row is the joint recovery requested by RC-3 (#12).
+    parameter symbol and its reference value. A final NRMSE column reports the achieved cost
+    (mean-normalised NRMSE) as the ensemble median over its [min-max] range, so a single object shows the
+    restarts reaching a low cost (they converged) while their parameters disagree (the grey std). The
+    MERGED row is the joint recovery requested by RC-3 (#12).
   - RELATIVE-ERROR PLOT ({stem}_relerr): six panels on a shared symmetric-log axis. Panels 1-5 (one per
     parameter): the signed relative error of every seeded restart (faint points) and of the best member
     (cursor), per experiment; the reference is the 0 % line. Panel 6: the mean absolute relative error
@@ -66,6 +69,7 @@ EXP = fs.order(set(d.experiment))                            # MERGED + present 
 NSEEDS = int(d.groupby("experiment").seed.nunique().max())
 best = d.loc[d.groupby("experiment").best_nrmse.idxmin().values].set_index("experiment")   # best seed/exp
 std = d.groupby("experiment")[PARAM_ORDER].std(ddof=1)       # dispersion across the seeded restarts
+nrmse = d.groupby("experiment").best_nrmse.agg(["median", "min", "max"])   # achieved cost across the restarts
 print(f"metric={METRIC}, {len(EXP)} experiments, up to {NSEEDS} seeds")
 
 
@@ -92,7 +96,7 @@ def render_table(stem):
     row_y = lambda i: n - i - 0.5                # centre of experiment row i (top = first)
 
     fig, ax = plt.subplots(figsize=(fs.WIDTH_FULL, 0.52 * fs.WIDTH_FULL))
-    ax.set_xlim(0, LEAD + NP)
+    ax.set_xlim(0, LEAD + NP + 1)
     ax.set_ylim(0, n + 1)
     ax.axis("off")
 
@@ -107,6 +111,7 @@ def render_table(stem):
     for i in range(1, n):
         ax.axhline(n - i, color="0.85", lw=0.6, zorder=3)
     ax.axvline(LEAD, color="0.85", lw=0.6, zorder=3)
+    ax.axvline(LEAD + NP, color="0.85", lw=0.6, zorder=3)        # separates parameter recovery from the fit column
 
     # header: corner label + per-parameter (symbol over "ref = value unit")
     ax.text(0.08, HEADER_Y, "Experiment", ha="left", va="center", fontsize=8.5, fontweight="bold", color="0.3")
@@ -114,6 +119,8 @@ def render_table(stem):
         ax.text(col_x(j), HEADER_Y + 0.14, PLABEL[p], ha="center", va="center", fontsize=13)
         ax.text(col_x(j), HEADER_Y - 0.27, f"ref = {fmt(REF[p])}{UNIT[p]}",
                 ha="center", va="center", fontsize=6.8, color="0.4")
+    ax.text(col_x(NP), HEADER_Y + 0.14, r"NRMSE$_\mathrm{mean}$", ha="center", va="center", fontsize=9)
+    ax.text(col_x(NP), HEADER_Y - 0.27, "median [min–max]", ha="center", va="center", fontsize=6.6, color="0.4")
 
     # body: one row per experiment, one two-line cell per parameter
     for i, e in enumerate(EXP):
@@ -124,6 +131,10 @@ def render_table(stem):
             re = (v - REF[p]) / abs(REF[p]) * 100.0
             ax.text(col_x(j), yc + 0.19, f"{fmt(v)} ({fmt_re(re)})", ha="center", va="center", fontsize=CELL_FS)
             ax.text(col_x(j), yc - 0.19, fmt(s), ha="center", va="center", fontsize=CELL_FS, color="0.5")
+        med, lo, hi = nrmse.loc[e, "median"], nrmse.loc[e, "min"], nrmse.loc[e, "max"]
+        ax.text(col_x(NP), yc + 0.19, f"{med:.3f}", ha="center", va="center", fontsize=CELL_FS)
+        ax.text(col_x(NP), yc - 0.19, f"{lo:.3f}–{hi:.3f}", ha="center", va="center",
+                fontsize=CELL_FS - 1.4, color="0.5")
 
     fig.tight_layout()
     fs.save(fig, stem, subdir=None)
@@ -285,13 +296,36 @@ def render_heatmaps(stem):
     fs.save(fig, stem, subdir=None)
 
 
+def _fmt_sci(v):
+    """Compact mathtext scientific notation for the achieved cost, so the true NRMSE is shown across
+    its whole range (e.g. 1.9e-8 at CANARY, 1.3e-2 at HOT) instead of collapsing to 0.000 on rounding."""
+    if v <= 0:
+        return "0"
+    e = int(np.floor(np.log10(v)))
+    m = v / 10.0 ** e
+    return rf"${m:.1f}\times10^{{{e}}}$"
+
+
 def render_recovery(stem):
-    """A single heatmap: the relative error of the best member per experiment x parameter, WITHOUT the
-    ensemble-spread panel. The everyday view when only the best seed of each station matters."""
+    """A single heatmap: the relative error of the best member per experiment x parameter. A plain
+    NRMSE column on the right gives the best seed's achieved cost, kept uncoloured so no acceptability
+    threshold is implied. Wrong parameters (dark cells) sitting next to a near-zero cost read as
+    equifinality in one row (e.g. CANARY / BATS recruitment)."""
     abs_err, signed_err = _recovery_matrices()
     cmap, norm = _heatmap_cmap()
-    fig, ax = plt.subplots(figsize=(0.62 * fs.WIDTH_FULL, 0.42 * fs.WIDTH_FULL), layout="constrained")
+    fig, ax = plt.subplots(figsize=(0.70 * fs.WIDTH_FULL, 0.42 * fs.WIDTH_FULL), layout="constrained")
     _draw_heatmap(ax, abs_err, signed_err, _heat_fmt_signed, "", cmap, norm, ylabels=True)   # no panel title
+
+    jN = len(PARAM_ORDER)                                        # the param heatmap occupies columns 0..jN-1
+    ax.set_xlim(-0.5, jN + 0.5)                                  # host one extra, text-only NRMSE column
+    ax.axvline(jN - 0.5, color="0.55", lw=1.1, zorder=5)         # divider: parameter recovery | fit
+    ax.text(jN, 1.09, r"NRMSE$_\mathrm{mean}$", transform=ax.get_xaxis_transform(),
+            ha="center", va="bottom", fontsize=8.5, clip_on=False)
+    ax.text(jN, 1.02, "best seed", transform=ax.get_xaxis_transform(),
+            ha="center", va="bottom", fontsize=6.6, color="0.5", clip_on=False)
+    for i, e in enumerate(EXP):
+        ax.text(jN, i, _fmt_sci(nrmse.loc[e, "min"]), ha="center", va="center", fontsize=8, color="0.1")
+
     _heatmap_colorbar(fig, [ax], cmap, norm, label="best-member error (% of reference)")
     fs.save(fig, stem, subdir=None)
 
