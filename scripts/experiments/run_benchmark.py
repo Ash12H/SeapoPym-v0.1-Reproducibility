@@ -30,7 +30,11 @@ from seapopym_repro import paths
 PARAMS = paths.load_params()
 REF = PARAMS["model_parameters"]["reference"]
 BENCH = PARAMS["theoretical_benchmark"]
-DURATION_DAYS = 540
+# The 0 C case is the slowest: the biomass relaxes toward B = R / lambda with time constant
+# 1 / lambda_0 = 150 d, so reaching the analytical steady state to <0.01% takes ~9.2 / lambda_0
+# ~ 1400 d, and to numerical precision ~16 / lambda_0 ~ 2400 d. Run seven years so every
+# temperature (0 C included) actually converges within the window.
+DURATION_DAYS = 2555
 
 
 def transform_temperature(temperature: float) -> float:

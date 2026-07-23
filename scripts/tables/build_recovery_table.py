@@ -59,7 +59,7 @@ lines = [
     r"% Do not edit by hand. \input this inside a table* float and write the \caption in the manuscript.",
     r"\begin{tabular}{@{}l rrrrr r@{}}",
     r"\toprule",
-    r"Synthetic observation & " + " & ".join(fs.PLABEL[p] for p in fs.PARAM_ORDER) + r" & NRMSE$_\mathrm{mean}$\\",
+    r"Synthetic observation & " + " & ".join(fs.PLABEL[p] for p in fs.PARAM_ORDER) + r" & NRMSE\\",
     r"(station) & " + " & ".join(f"${fs.REF[p]:g}$" for p in fs.PARAM_ORDER) + r" & \\",
     r"\midrule",
 ]
