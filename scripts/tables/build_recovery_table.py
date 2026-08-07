@@ -11,7 +11,7 @@ Emits the tabular ONLY, so it can be \input inside a table* float whose \caption
 manuscript (the numbers regenerate here, the wording stays under the author's control). A ready-made
 table* + caption wrapper is printed to stdout for convenience.
 
-Reads ONLY products/cmaes_seed_ensemble_l{lam}{metric}.csv (same product as fig08_recovery.py).
+Reads ONLY products/cmaes_seed_ensemble_l{lam}{metric}.csv, frozen by run_cmaes_seed_ensemble.py.
 Output : products/recovery_table.tex   (the tabular, to \input; also printed to stdout)
 Run    : .venv/bin/python scripts/tables/build_recovery_table.py [--metric nrmse_mean]
 """
