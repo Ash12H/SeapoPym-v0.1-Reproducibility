@@ -91,7 +91,12 @@ def run_benchmark(t_celsius: float) -> xr.DataArray:
             primary_production=ForcingUnit(forcing=npp),
         ),
         functional_group=functional_group,
-        kernel=KernelParameter(compute_initial_conditions=False, compute_preproduction=False),
+        # Implicit biomass scheme, the one the paper describes and the one every other experiment
+        # uses. Both schemes share the same analytical equilibrium B = R / lambda, so this changes
+        # only the approach time, and only in warm water where lambda * dt is no longer small.
+        kernel=KernelParameter(
+            compute_initial_conditions=False, compute_preproduction=False, biomass_solver="implicit"
+        ),
     )
     with NoTransportModel.from_configuration(configuration=config) as model:
         model.run()
