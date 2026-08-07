@@ -3,22 +3,100 @@
 Code and data accompanying Lehodey et al. (2026, *Geoscientific Model Development*):
 **SeapoPym v0.1** (egusphere-2026-711).
 
-> ⚠️ **Work in progress.** The deposit is being restructured for the revision. Full
-> setup/reproduction instructions and the figure-to-script provenance map will be added once
-> the revised analysis is finalised.
+## Install
+
+```bash
+uv sync
+```
+
+This installs the model itself from the `v0.1.1` tag of
+[SeapoPym/seapopym](https://github.com/SeapoPym/seapopym), the exact version described in the paper,
+archived at [10.5281/zenodo.21838667](https://doi.org/10.5281/zenodo.21838667). Every command below
+assumes the resulting environment, either through `uv run` or through `.venv/bin/python`.
+
+## Redrawing the figures
+
+Every figure and table of the paper redraws from the committed outputs in `products/`, with nothing
+to rerun and nothing to download.
+
+```bash
+.venv/bin/python scripts/figures/fig01_forcing_maps.py    # and fig02 ... fig07
+.venv/bin/python scripts/tables/build_recovery_table.py
+```
+
+Figures are written to `figures/` as PDF and PNG.
+
+| Paper item | Script | Reads |
+|---|---|---|
+| Figure 1 | `scripts/figures/fig01_forcing_maps.py` | `products/forcing_global_means.nc` |
+| Figure 2 | `scripts/figures/fig02_stations_distribution.py` | `products/forcing_global_means.nc` |
+| Figure 3 | `scripts/figures/fig03_benchmark.py` | `products/benchmark_convergence.csv` |
+| Figure 4 | `scripts/figures/fig04_transport.py` | `products/transport_impact_maps.nc` |
+| Figure 5 | `scripts/figures/fig05_obs_gap.py` | `data/insitu_zooplankton_obs.csv`, `data/stations.zarr`, `data/pseudo_observations.zarr` |
+| Figure 6 | `scripts/figures/fig06_sobol.py` | `products/sobol_indices.csv` |
+| Figure 7 | `scripts/figures/fig07_convergence.py` | `products/cmaes_convergence_traces_l8_nrmse_mean.csv` |
+| Table 2 (parameter recovery) | `scripts/tables/build_recovery_table.py` | `products/cmaes_seed_ensemble_l8_nrmse_mean.csv` |
+| Table B1 (per-station summary) | `scripts/tables/build_station_summary.py` | `products/transport_impact_maps.nc`, `data/stations.zarr` |
+
+The workflow diagram in the appendix is a schematic and is not produced by this deposit.
+
+## Rerunning the experiments
+
+The station experiments run on the inputs shipped with the deposit. The global comparison behind
+Figures 1, 2 and 4 additionally needs a 5.9 GB CMEMS forcing field, which is too large to commit.
+
+### Station experiments — no download needed
+
+```bash
+.venv/bin/python scripts/experiments/run_benchmark.py            # -> benchmark_convergence.csv
+.venv/bin/python scripts/experiments/run_sobol_convergence.py    # -> sobol_indices.csv
+.venv/bin/python scripts/experiments/run_cmaes_seed_ensemble.py  # -> cmaes_*.csv
+```
+
+They are independent of one another and each overwrites its own product.
+
+`run_sobol_convergence.py` is the entry point of the sensitivity analysis. It calls
+`run_sobol_production.py` at increasing sample sizes, stops at the first size that meets the
+convergence criterion, and promotes that point to `products/sobol_indices.csv`, the table Figure 6
+reads. The published run converged at N = 8192, that is 57 344 model runs per station, so this is
+the long step. Both it and the CMA-ES ensemble are resumable, an interrupted run losing at most the
+sample size or the restart in flight.
+
+The synthetic observations the twin experiments fit are committed as `data/pseudo_observations.zarr`.
+`scripts/data/gen_pseudo_observations.py` regenerates them, and must be rerun before the CMA-ES
+ensemble if the reference parameters in `parameters.yaml` are changed.
+
+### Global comparison — needs the CMEMS download
+
+Run in this order, each step consuming the previous one.
+
+```bash
+.venv/bin/python scripts/data/download_cmems_global.py     # -> data/forcings_global.zarr  (5.9 GB)
+.venv/bin/python scripts/data/run_global_simulation.py     # -> data/biomass_global.zarr
+.venv/bin/python scripts/data/freeze_forcing_means.py      # -> products/forcing_global_means.nc
+.venv/bin/python scripts/data/freeze_transport_maps.py     # -> products/transport_impact_maps.nc
+```
+
+`scripts/data/download_cmems_stations.py` refetches the station forcing, already committed as
+`data/stations.zarr`. Both download scripts need Copernicus Marine credentials.
 
 ## Layout
 
 ```
-src/seapopym_repro/   shared package (paths, twin-experiment core, figure style)
-scripts/
-  data/               forcing download (CMEMS) + pseudo-observation generation
-  experiments/        CMA-ES calibration ensemble + Sobol sensitivity
-  figures/            figure scripts (read products/, write figures/)
-data/                 inputs — small station forcings tracked; heavy global forcing fetched via scripts/data/
-products/             frozen experiment outputs (CSV) the figures consume
-figures/              produced figures (PDF + PNG)
-parameters.yaml       reference parameters, bounds, run configuration
+src/seapopym_repro/   shared package: paths, experiment setup, metrics, figure style
+scripts/data/         CMEMS download, global simulation, frozen global fields
+scripts/experiments/  benchmark, Sobol sensitivity, CMA-ES twin experiments
+scripts/figures/      figure scripts, read products/ and write figures/
+scripts/tables/       LaTeX and CSV tables of the paper
+data/                 station inputs, committed; the global forcing is downloaded
+products/             frozen experiment outputs, committed, what the figures read
+figures/              produced figures, PDF and PNG
+parameters.yaml       reference parameters, search bounds, run configuration
+results_raw/          heavy intermediates, not committed, regenerated by the experiments
 ```
 
-Calibration uses **CMA-ES** (pycma); the environment is pinned with `uv` (`pyproject.toml` + `uv.lock`).
+`scripts/figures/fig08_recovery.py` and `scripts/figures/fig09_equifinality.py` are diagnostics kept
+from the analysis; neither produces a figure of the published paper.
+
+Calibration uses CMA-ES through `seapopym_optimization.algorithm.CMAES` (pycma), and the environment
+is pinned with `uv` in `pyproject.toml` and `uv.lock`.
