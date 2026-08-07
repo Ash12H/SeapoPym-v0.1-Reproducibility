@@ -1,26 +1,26 @@
-"""rehearsal/run_cmaes_seed_ensemble.py — seeded CMA-ES ensemble (pycma) for the twin experiment.
+"""Seeded CMA-ES ensemble for the twin experiments (Sect. 2.4 and 3.3 of the paper).
 
-Per-station seeded multi-start CMA-ES (Hansen's reference implementation, pycma): characterises
-convergence + identifiability from the distribution of N restarts, and serves as the
-operator-independent cross-check of the GA (same objective, different optimiser family).
+Runs a multi-start CMA-ES at each station and on the joint MERGED experiment, then characterises
+convergence and parameter identifiability from the distribution of the restarts. The search is
+driven by the framework optimizer `seapopym_optimization.algorithm.CMAES`, which wraps pycma
+(Hansen's reference implementation) behind the framework's pluggable optimizer interface.
 
-Config (defaults): lambda = CMA-ES default int(4+3*ln(N)) = 8, 100 fully-random restarts per
-experiment (seeds 0..99). pycma handles the [0,1]^5 box bounds smoothly (no hard clipping ->
-no boundary pile-up, unlike the old DEAP+clip version which trapped solutions on the bounds).
-Termination = pycma's STANDARD criteria (tolx 1e-4 / tolfun / conditioncov / ...); maxiter=ngen
-(default 1000) is a backstop that should NOT bind — cap_hit + the logged stop reason verify this.
-Same objective as the GA (mean station NRMSE via CostFunction + DistributedEvaluation, Dask method A:
-the lambda candidates of each generation evaluated across process workers). Compare on PARAMETER
-RECOVERY vs reference, not on NRMSE (low NRMSE on warm stations is equifinality, not recovery).
+Published configuration (the script defaults): population lambda = int(4 + 3*ln(5)) = 8, twenty
+random restarts per experiment (seeds 0..19), cost = mean station NRMSE normalized by the mean of
+the target series, implicit biomass solver. Termination uses pycma's standard criteria (tolx 1e-4,
+tolfun, conditioncov); maxiter = --ngen is only a backstop and must not bind, which `cap_hit` and
+the logged stop reason verify. Read the results on PARAMETER RECOVERY against the reference, not on
+the NRMSE: a low NRMSE at a warm station is equifinality, not recovery.
 
-RESUMABLE per seed: each seed's full trajectory is written to a lambda-namespaced logbook; a restart
-reuses any seed whose logbook already exists (a crash loses at most the in-flight seed). Outputs go to
-rehearsal/cmaes/ (the dedicated production folder), namespaced by lambda:
-    cmaes/seeds/ga_logbook_{exp}_lambda{L}_seed{S}.parquet   per-seed trajectory (resume unit)
-    cmaes/ga_logbook_{exp}.parquet                           best seed (read by figure scripts)
-    cmaes/cmaes_seed_ensemble_l{L}.csv                       all (exp, seed) results + cap_hit
+Resumable per seed: each restart writes its full trajectory to a lambda- and metric-namespaced
+logbook, and a rerun reuses every seed whose logbook already exists, so a crash costs at most the
+in-flight seed.
 
-Run: .venv/bin/python rehearsal/run_cmaes_seed_ensemble.py
+Inputs : data/pseudo_observations.zarr, data/stations.zarr, parameters.yaml
+Outputs: products/cmaes_seed_ensemble_l8_nrmse_mean.csv        per (experiment, seed) result
+         products/cmaes_convergence_traces_l8_nrmse_mean.csv   best-so-far cost per evaluation
+         results_raw/cmaes/ (gitignored)                       per-seed parquet trajectories
+Run    : .venv/bin/python scripts/experiments/run_cmaes_seed_ensemble.py
 """
 
 from __future__ import annotations
@@ -33,20 +33,22 @@ import time
 import numpy as np
 import pandas as pd
 import yaml
-import cma  # pycma — Hansen's reference CMA-ES (standard termination criteria + smooth bound handling)
 from dask.distributed import Client
-
-from seapopym_repro import experiment as ga, paths
-from seapopym_repro.metrics import COMPARATORS
 from seapopym.configuration.no_transport import KernelParameter
 from seapopym.model.no_transport_model import NoTransportSpaceOptimizedLightModel
+from seapopym_optimization.algorithm import CMAES, CMAESParameters
 from seapopym_optimization.algorithm.genetic_algorithm.evaluation_strategies import DistributedEvaluation
 from seapopym_optimization.configuration_generator import NoTransportConfigurationGenerator
 from seapopym_optimization.cost_function import CostFunction, TimeSeriesScoreProcessor, nrmse_std_comparator
 from seapopym_optimization.functional_group import FunctionalGroupSet
 
-# Available cost metrics: the framework's PROVEN nrmse_std for the default (byte-identical to the frozen
-# products) + the diagnostic comparators (nrmse_mean / rmse / mae / nmae) for alternative-cost runs.
+from seapopym_repro import experiment as ga
+from seapopym_repro import paths
+from seapopym_repro.metrics import COMPARATORS
+
+# Cost comparators. The published runs use PRODUCTION_METRIC (nrmse_mean, the NRMSE normalized by the
+# mean of the target series); the others are available for alternative-cost runs, which are namespaced
+# by metric so they never overwrite the published products.
 COMP = {**COMPARATORS, "nrmse_std": nrmse_std_comparator}
 
 EXPERIMENTS = ["BARENTS", "PAPA", "Bay_of_Biscay", "BATS", "Canaries", "HOT", "MERGED"]
@@ -62,43 +64,30 @@ def cmaes_lambda(n_params: int) -> int:
     return int(4 + 3 * np.log(n_params))
 
 
-def run_seed(seed, names, lo, hi, obs_names, evalstrat, lam, ngen):
-    """One seeded CMA-ES restart (pycma), evaluated via `evalstrat` (Dask method A).
+def run_seed(seed, cost, evalstrat, lam, ngen):
+    """One seeded CMA-ES restart, driven by the framework optimizer.
 
-    Fresh random start in [0,1]^5 (reproducible from `seed`); pycma handles the box bounds smoothly
-    (no hard clipping -> no boundary pile-up). Stops on pycma's STANDARD criteria (tolx/tolfun/
-    conditioncov/...) with maxiter=ngen as a backstop. Returns (best, params, logbook, stop_reason).
+    The search is delegated to `seapopym_optimization.algorithm.CMAES`, the framework's first-class
+    CMA-ES backend, so this experiment exercises the same pluggable optimizer interface as the rest
+    of the framework rather than a private pycma loop. The optimizer starts from a reproducible
+    random point in [0,1]^5 (`RandomState(seed)`), lets pycma handle the box bounds smoothly (no hard
+    clipping -> no boundary pile-up), and stops on pycma's STANDARD criteria (tolx/tolfun/
+    conditioncov/...) with maxiter=ngen as a backstop.
+
+    The cost weights are uniform and negative, one per observation, so the minimized scalar is the
+    mean NRMSE across the observations of the experiment (a single station, or the six of MERGED).
+    Returns (best, params, logbook, stop_reason).
     """
-    D = len(names)
-
-    def denorm(xn):
-        return (lo + np.clip(np.asarray(xn, float), 0.0, 1.0) * (hi - lo)).tolist()
-
-    x0 = np.random.RandomState(seed).uniform(0.0, 1.0, D).tolist()   # reproducible random restart
-    es = cma.CMAEvolutionStrategy(x0, SIGMA0, {
-        "bounds": [0.0, 1.0], "popsize": lam, "seed": int(seed) + 1,  # +1: pycma treats seed 0 as random
-        "maxiter": ngen, "tolx": 1e-4, "verbose": -9})
-    rows, index, best, gen = [], [], np.inf, 0
-    while not es.stop():
-        X = es.ask()                                   # lam candidates in [0,1]^D (bounds handled by pycma)
-        reals = [denorm(x) for x in X]
-        fits = evalstrat.evaluate(reals)
-        costs = [float(np.mean(np.asarray(f, float))) for f in fits]
-        costs = [c if np.isfinite(c) else 1e6 for c in costs]   # nan/inf -> penalty (safe for es.tell)
-        es.tell(X, costs)
-        for i, (real, f, c) in enumerate(zip(reals, fits, costs)):
-            index.append((gen, False, i))
-            row = {("Parametre", p): real[j] for j, p in enumerate(names)}
-            row.update({("Fitness", o): float(np.asarray(f, float)[k]) for k, o in enumerate(obs_names)})
-            row[("Weighted_fitness", "Weighted_fitness")] = -c
-            rows.append(row)
-        best = min(best, min(costs))
-        gen += 1
-    df = pd.DataFrame(rows, index=pd.MultiIndex.from_tuples(
-        index, names=["Generation", "Is_From_Previous_Generation", "Individual"]))
-    df.columns = pd.MultiIndex.from_tuples(df.columns)
-    bx = df.loc[df[("Weighted_fitness", "Weighted_fitness")].idxmax(), "Parametre"].to_dict()
-    return best, {k: float(bx[k]) for k in ga.PARAM_KEYS}, df, ",".join(sorted(es.stop()))
+    weights = (-1.0,) * len(cost.observations)          # uniform -> the minimized scalar is the mean NRMSE
+    cmaes = CMAES(
+        CMAESParameters(NGEN=ngen, SIGMA0=SIGMA0, POP_SIZE=lam, SEED=seed, cost_function_weight=weights),
+        cost,
+        evalstrat,
+    )
+    df = cmaes.optimize()
+    wf = df[("Weighted_fitness", "Weighted_fitness")]
+    bx = df.loc[wf.idxmax(), "Parametre"].to_dict()
+    return float(-wf.max()), {k: float(bx[k]) for k in ga.PARAM_KEYS}, df, cmaes.stop_reason
 
 
 def best_of_logbook(out):
@@ -145,12 +134,7 @@ def build_convergence_traces(lam, experiments, mtag="", ndown=120):
 
 def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen, comparator, mtag):
     observations = ga.build_observations(exp, stations_meta)
-    obs_names = [o.name for o in observations]
     fg_set = FunctionalGroupSet(ga.functional_groups(params["model_parameters"]["bounds"]))
-    nb = fg_set.unique_functional_groups_parameters_ordered()
-    names = list(nb.keys())
-    lo = np.array([p.lower_bound for p in nb.values()], float)
-    hi = np.array([p.upper_bound for p in nb.values()], float)
     cost = CostFunction(
         configuration_generator=NoTransportConfigurationGenerator(model_class=NoTransportSpaceOptimizedLightModel),
         functional_groups=fg_set, forcing=forcing, kernel=KernelParameter(biomass_solver="implicit"),
@@ -170,7 +154,7 @@ def run_experiment(exp, params, stations_meta, forcing, client, lam, seeds, ngen
             nrmse, prm, stop_gen = best_of_logbook(out)
             stop_reason = "reuse"
         else:
-            nrmse, prm, df, stop_reason = run_seed(seed, names, lo, hi, obs_names, evalstrat, lam, ngen)
+            nrmse, prm, df, stop_reason = run_seed(seed, cost, evalstrat, lam, ngen)
             df.to_parquet(out)
             stop_gen = int(df.index.get_level_values("Generation").max())
         cap = stop_gen >= ngen - 1
@@ -194,7 +178,7 @@ def main():
     ap.add_argument("--experiments", default=",".join(EXPERIMENTS))
     ap.add_argument("--lambda", dest="lam", type=int, default=8,
                     help="CMA-ES population (default 8 = DEAP default int(4+3*ln(N)) for 5 params)")
-    ap.add_argument("--n-seeds", type=int, default=100, help="run seeds 0..n-1 (default 100)")
+    ap.add_argument("--n-seeds", type=int, default=20, help="run seeds 0..n-1 (default 20, the published ensemble)")
     ap.add_argument("--seeds", default=None, help="explicit comma-separated seeds (overrides --n-seeds)")
     ap.add_argument("--ngen", type=int, default=1000,
                     help="iteration-cap backstop (default 1000); convergence is sigma<1e-3, so the cap should NOT bind")
@@ -202,8 +186,9 @@ def main():
     ap.add_argument("--memory-limit", default="4GB", help="per-worker memory, single station (default 4GB)")
     ap.add_argument("--merged-workers", type=int, default=6, help="process workers for MERGED (default 6)")
     ap.add_argument("--merged-mem", default="6GB", help="per-worker memory for MERGED (default 6GB)")
-    ap.add_argument("--metric", default="nrmse_std", choices=sorted(COMP),
-                    help="cost comparator (default nrmse_std = the frozen products); others namespace outputs by metric")
+    ap.add_argument("--metric", default=paths.PRODUCTION_METRIC, choices=sorted(COMP),
+                    help=f"cost comparator (default {paths.PRODUCTION_METRIC} = the published products); "
+                         "any other value namespaces the outputs by metric")
     ap.add_argument("--freeze", action="store_true",
                     help="rebuild the committed products (convergence-traces CSV) from existing per-seed logbooks; no optimisation")
     args = ap.parse_args()
