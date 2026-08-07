@@ -11,7 +11,7 @@ authors = [
     { name = "Sarah Albernhe" },
     { name = "Simon Nicol" },
 ]
-keywords = ["seapodym", "zooplankton", "biogeochemistry", "marine-ecosystem", "genetic-algorithm"]
+keywords = ["seapodym", "zooplankton", "biogeochemistry", "marine-ecosystem", "cma-es", "sensitivity-analysis"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -26,7 +26,7 @@ classifiers = [
 # deap, salib, scipy, scikit-learn, pandera, …) are pulled in by `seapopym`
 # and `seapopym-optimization` and are not listed here to avoid version conflicts.
 dependencies = [
-    # SeapoPym packages — pinned to the v0.1 tag (commit 9022cef) used in the paper
+    # SeapoPym packages — pinned to the v0.1.1 tag (see [tool.uv.sources])
     "seapopym",
     "seapopym-optimization",
 
@@ -61,18 +61,15 @@ dependencies = [
 [tool.uv]
 # Build & install THIS repo so its shared package `seapopym_repro` (src/) is importable by the
 # scripts in scripts/{data,experiments,figures}. Installed editable, so paths.ROOT resolves to the
-# working tree. (The framework deps below are still the held interim local fork.)
+# working tree.
 package = true
 
 [tool.uv.sources]
-# SeapoPym is a uv workspace monorepo. INTERIM: install from the local review
-# fork (editable) while the GA-calibration changes (SBX, early stopping,
-# plain-Sobol init) are tested; once the PR is merged upstream, revert to the
-# official tag, e.g.:
-#   seapopym = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym" }
-#   seapopym-optimization = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1", subdirectory = "packages/seapopym-optimization" }
-seapopym = { path = "dependencies/seapopym-review/packages/seapopym", editable = true }
-seapopym-optimization = { path = "dependencies/seapopym-review/packages/seapopym-optimization", editable = true }
+# SeapoPym is a uv workspace monorepo, so each package is a subdirectory of one repository. Both are
+# pinned to the v0.1.1 tag, the exact model version used for the results of the paper and archived at
+# https://doi.org/10.5281/zenodo.21838667.
+seapopym = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1.1", subdirectory = "packages/seapopym" }
+seapopym-optimization = { git = "https://github.com/SeapoPym/seapopym.git", tag = "v0.1.1", subdirectory = "packages/seapopym-optimization" }
 
 [tool.ruff]
 line-length = 120

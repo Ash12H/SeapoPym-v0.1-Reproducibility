@@ -1532,7 +1532,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "ptyprocess" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -2019,8 +2019,8 @@ wheels = [
 
 [[package]]
 name = "seapopym"
-version = "0.1.0"
-source = { editable = "dependencies/seapopym-review/packages/seapopym" }
+version = "0.1.1"
+source = { git = "https://github.com/SeapoPym/seapopym.git?subdirectory=packages%2Fseapopym&tag=v0.1.1#087278dd111d99333df8efb0af1b1660b10af855" }
 dependencies = [
     { name = "attrs" },
     { name = "cf-xarray" },
@@ -2035,25 +2035,10 @@ dependencies = [
     { name = "xarray" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "attrs", specifier = ">=25.3.0" },
-    { name = "cf-xarray", specifier = ">=0.10.9" },
-    { name = "dask", specifier = ">=2025.9.0" },
-    { name = "distributed", specifier = ">=2025.9.0" },
-    { name = "netcdf4", specifier = ">=1.6.0" },
-    { name = "numba", specifier = ">=0.61.2" },
-    { name = "numpy", specifier = ">=1.24.0" },
-    { name = "pint", specifier = ">=0.25" },
-    { name = "pint-xarray", specifier = ">=0.6.0" },
-    { name = "pyarrow", specifier = ">=21.0.0" },
-    { name = "xarray", specifier = ">=2025.9.0" },
-]
-
 [[package]]
 name = "seapopym-optimization"
-version = "0.1.0"
-source = { editable = "dependencies/seapopym-review/packages/seapopym-optimization" }
+version = "0.1.1"
+source = { git = "https://github.com/SeapoPym/seapopym.git?subdirectory=packages%2Fseapopym-optimization&tag=v0.1.1#087278dd111d99333df8efb0af1b1660b10af855" }
 dependencies = [
     { name = "cma" },
     { name = "dask" },
@@ -2064,19 +2049,6 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "seapopym" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cma", specifier = ">=3.3" },
-    { name = "dask", specifier = ">=2025.9.0" },
-    { name = "deap", specifier = ">=1.4.3" },
-    { name = "distributed", specifier = ">=2025.9.0" },
-    { name = "pandera", specifier = ">=0.26.1" },
-    { name = "salib", specifier = ">=1.5.1" },
-    { name = "scikit-learn", specifier = ">=1.7.2" },
-    { name = "scipy", specifier = ">=1.16.2" },
-    { name = "seapopym", editable = "dependencies/seapopym-review/packages/seapopym" },
 ]
 
 [[package]]
@@ -2111,8 +2083,8 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "seaborn", specifier = ">=0.13" },
-    { name = "seapopym", editable = "dependencies/seapopym-review/packages/seapopym" },
-    { name = "seapopym-optimization", editable = "dependencies/seapopym-review/packages/seapopym-optimization" },
+    { name = "seapopym", git = "https://github.com/SeapoPym/seapopym.git?subdirectory=packages%2Fseapopym&tag=v0.1.1" },
+    { name = "seapopym-optimization", git = "https://github.com/SeapoPym/seapopym.git?subdirectory=packages%2Fseapopym-optimization&tag=v0.1.1" },
     { name = "zarr", specifier = ">=3.0" },
 ]
 
