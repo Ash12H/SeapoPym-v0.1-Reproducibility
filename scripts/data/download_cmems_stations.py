@@ -1,45 +1,24 @@
-"""download_cmems_stations.py — Download CMEMS forcings for the 6 oceanographic stations.
+"""Download the CMEMS forcing at the six station locations.
 
-Faithful to the procedure described in Section 2.3 of Lehodey et al. (2026, GMD):
+Follows the procedure of the paper: download the CMEMS LMTL product (GLOBAL_MULTIYEAR_BGC_001_033,
+DOI 10.48670/moi-00020) at its native 1/12 degree resolution, regrid to 1 degree by bin-averaging,
+then extract the cell containing each station coordinate. download_cmems_global.py applies the same
+regridding over the whole ocean.
 
-    1. Download CMEMS LMTL product (GLOBAL_MULTIYEAR_BGC_001_033) at native 1/12° resolution
-    2. Regrid to 1° using bin-averaging (same algorithm as the global pipeline)
-    3. Extract the 1° cell containing each station coordinate
+Variables: temperature of the epipelagic layer (depth index 1) from the Fphy product, vertically
+integrated primary production (npp) and the SEAPODYM-LMTL zooplankton biomass (zooc) from the Bio
+product.
 
-Variables:
-    - temperature: epipelagic layer (depth index 1), from Fphy product
-    - npp:         vertically integrated primary production, from Bio product
-    - zooc:        zooplankton biomass (LMTL reference), from Bio product
+Stations: BARENTS (75.0N, 40.0E, Barents Sea), PAPA (50.0N, 132.0W, subarctic northeast Pacific),
+BISCAY (45.5N, 4.0W, Bay of Biscay), BATS (32.0N, 64.0W), CANARY (30.0N, 13.0W), HOT (23.0N, 158.0W).
 
-Stations (manuscript Table 2):
-    BARENTS  75.0°N   40.0°E   — Barents Sea
-    PAPA     50.0°N  132.0°W   — Station Papa
-    BISCAY   45.5°N    4.0°W   — Bay of Biscay
-    BATS     32.0°N   64.0°W   — Bermuda Atlantic Time-series Study
-    CANARY   30.0°N   13.0°W   — Canary Islands
-    HOT      23.0°N  158.0°W   — Hawaii Ocean Time-series
+The result is committed as data/stations.zarr, so this script is only needed to rebuild it.
+Copernicus Marine credentials are required, set either by running `copernicusmarine login` once or
+through the COPERNICUSMARINE_SERVICE_USERNAME and COPERNICUSMARINE_SERVICE_PASSWORD environment
+variables.
 
-Source DOI: 10.48670/moi-00020
-
-Authentication
---------------
-Requires Copernicus Marine credentials. Either:
-    - Run `copernicusmarine login` once interactively
-    - Or set COPERNICUSMARINE_SERVICE_USERNAME / COPERNICUSMARINE_SERVICE_PASSWORD env vars
-
-Output
-------
-    data/stations.zarr — Dataset with dims (time, station) and variables
-    (temperature, npp, zooc). Approximate size: 5-15 MB.
-
-Usage
------
-    python scripts/download_cmems_stations.py
-
-This is a lightweight equivalent of the full global download procedure used in the
-manuscript. To reproduce the global figures (Fig. 1, Fig. 4), extend the bounding box
-to the full domain as described in Section 2.3 (see the companion full-global script in
-the SeapoPym Article 2 codebase, which uses the same regridding algorithm).
+Output : data/stations.zarr   (temperature, npp, zooc on time, station)
+Run    : .venv/bin/python scripts/data/download_cmems_stations.py
 """
 
 from __future__ import annotations
@@ -81,7 +60,7 @@ DEFAULT_END_DATE = "2019-12-31"
 # containing the station coordinate. 1° is a safe margin for any rounding edge case.
 BBOX_HALF = 1.0
 
-# Target 1° grid edges — identical to the global pipeline (Section 2.3 of the manuscript)
+# Target 1 degree grid edges, the same as in download_cmems_global.py
 TARGET_LAT_EDGES = np.arange(-85, 86, 1.0)
 TARGET_LON_EDGES = np.arange(-180, 181, 1.0)
 TARGET_LAT = 0.5 * (TARGET_LAT_EDGES[:-1] + TARGET_LAT_EDGES[1:])

@@ -1,20 +1,15 @@
-"""Table (appendix) — per-station summary: regime, recruitment age, transport gap, structural gap.
+"""Build the per-station summary table of the appendix.
 
-Reproduces the values of the per-station appendix table of the manuscript. Reads ONLY committed
-inputs (turnkey, no SeapoPym-Data, no framework), reusing the exact same definitions as the
-figures so the numbers match:
-  - products/transport_impact_maps.nc   0D-2D RMSE and MAPE maps (same as Fig. 4)
-  - data/stations.zarr ('temperature')  station forcing -> recruitment age tau_r
-  - data/stations.zarr ('zooc')         SEAPODYM-LMTL (2D, with transport)
-  - data/pseudo_observations.zarr        SeapoPym (0D, reference parameters)
-  - data/insitu_zooplankton_obs.csv      in-situ HOT/BATS obs (P5-P95 clipped, as in Fig. 5)
+For each station: the mean temperature, the recruitment age at the mean and at the warmest point of
+the forcing series, in days and in daily cohorts, the difference between the two models sampled from
+the maps of Figure 4, and, at HOT and BATS, the gap between the reference and the observations with
+its ratio to that difference. The definitions are those of Figures 4 and 5, so the numbers match.
 
-For each station: mean temperature, tau_r at the mean and at the warmest point of the series
-(in days = number of daily cohorts), the 0D-2D difference (RMSE/MAPE, sampled from the Fig. 4 maps),
-and, at HOT/BATS, the 2D-obs structural gap (RMSE) and the ratio (2D-obs)/(0D-2D), computed exactly
-as in fig05_obs_gap.py (daily-series transport gap, P5-P95 clipped obs).
-
-Output : products/station_summary.csv  (and prints the table and the LaTeX body rows)
+Inputs : products/transport_impact_maps.nc   the model difference maps
+         data/stations.zarr                  station temperature and the SEAPODYM-LMTL reference
+         data/pseudo_observations.zarr       SeapoPym at the reference parameters
+         data/insitu_zooplankton_obs.csv     in-situ observations, clipped as in Figure 5
+Output : products/station_summary.csv, and the table and its LaTeX rows printed to stdout
 Run    : .venv/bin/python scripts/tables/build_station_summary.py
 """
 from __future__ import annotations

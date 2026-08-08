@@ -1,9 +1,9 @@
-"""Theoretical benchmark experiment — freeze the biomass-convergence curves for Figure 3.
+"""Compute the biomass convergence curves of Figure 3.
 
-Runs the SeapoPym model under CONSTANT forcing at four temperatures (0/10/20/30 C, NPP = 300
-mg C m-2 d-1) and records its convergence toward the analytical steady state B = R / lambda(T),
-with recruitment R = E * NPP. The result is a small committed product so Figure 3 redraws from git
-WITHOUT the framework (only this CSV is needed at figure time).
+Runs SeapoPym under constant forcing at four temperatures (0, 10, 20 and 30 C, with NPP held at
+300 mg C m-2 d-1) and records how the biomass approaches the analytical steady state
+B = R / lambda(T), with the recruitment flux R = E * NPP. The result is a small CSV, so Figure 3
+redraws without the framework.
 
 Output : products/benchmark_convergence.csv   (temperature, day, biomass, asymptote)
 Run    : .venv/bin/python scripts/experiments/run_benchmark.py

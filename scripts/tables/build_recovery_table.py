@@ -1,18 +1,15 @@
-r"""Table — twin-experiment parameter recovery (LaTeX), generated from the frozen seed-ensemble CSV.
+r"""Build the LaTeX table of parameter recovery in the twin experiments.
 
-Best-of-20 signed relative error (%) of each recovered parameter against its synthetic-observation
-reference, per experiment (MERGED + six stations), plus the achieved cost (mean-normalised NRMSE).
-The equifinal cells (a large error next to a near-zero cost) are read from the numbers alone, with no
-cell shading, so the table stays neutral and does not pre-judge which cells are failures. This is the
-typeset-table counterpart of Figure 8's recovery heatmap, reusing the exact same product and reference
-values (figstyle.REF / PLABEL / order / label) so the numbers match the figure.
+For each experiment, the six stations and the joint MERGED case, gives the signed relative error of
+each recovered parameter against its reference, in percent, taken from the best of the twenty
+restarts, together with the cost reached. Cells are left unshaded, so a large error next to a
+near-zero cost is read from the numbers themselves.
 
-Emits the tabular ONLY, so it can be \input inside a table* float whose \caption is written in the
-manuscript (the numbers regenerate here, the wording stays under the author's control). A ready-made
-table* + caption wrapper is printed to stdout for convenience.
+The file holds the tabular alone, to be included with \input inside a float whose caption is written
+in the manuscript. A ready-made float and caption are printed to stdout as a starting point.
 
-Reads ONLY products/cmaes_seed_ensemble_l{lam}{metric}.csv, frozen by run_cmaes_seed_ensemble.py.
-Output : products/recovery_table.tex   (the tabular, to \input; also printed to stdout)
+Input  : products/cmaes_seed_ensemble_l{lam}{metric}.csv, frozen by run_cmaes_seed_ensemble.py
+Output : products/recovery_table.tex, also printed to stdout
 Run    : .venv/bin/python scripts/tables/build_recovery_table.py [--metric nrmse_mean]
 """
 from __future__ import annotations

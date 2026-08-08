@@ -1,14 +1,15 @@
-"""Sobol analysis — freeze the sensitivity indices for Figure 6 (the display contract).
+"""Turn a raw Sobol run into the table of indices Figure 6 reads.
 
-Reads the raw Sobol run (results_raw/sobol/<subdir>/, produced by run_sobol_production.py) and
-computes first- (S1) and total-order (ST) Sobol indices with bootstrap 95% CIs via SALib, for all
-six output metrics at each station:
-    RAW    : mean          variance       argmax
-    ROBUST : log10(mean)    CV = std/mean  circular (cos/sin decomposition of the cyclic argmax)
-All six are kept in the product as the record justifying the figure's metric choice; Figure 6 then
-plots from this CSV alone (no raw parquet, no SALib at figure time).
+Reads the descriptors evaluated by run_sobol_production.py and computes, with SALib, the first-order
+(S1) and total-order (ST) Sobol indices and their bootstrap 95 % confidence intervals, for six
+descriptors at each station: the mean biomass, its variance and the day of year of the maximum, then
+the base-10 logarithm of the mean, the coefficient of variation and a circular treatment of the
+timing. The paper reports the logarithm of the mean and the raw timing; the other four are kept in
+the table so the choice can be checked.
 
-Input  : results_raw/sobol/<subdir>/{sobol_results.parquet, run_meta.json}   (gitignored)
+The result is a small CSV, so Figure 6 needs neither the raw run nor SALib.
+
+Input  : results_raw/sobol/<subdir>/sobol_results.parquet, run_meta.json
 Output : products/sobol_indices.csv   (family, metric, station, param, S1, S1_conf, ST, ST_conf)
 Run    : .venv/bin/python scripts/experiments/freeze_sobol_indices.py [--subdir conv/N8192]
 """

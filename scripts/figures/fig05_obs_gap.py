@@ -1,16 +1,14 @@
-"""Figure 5 — HOT/BATS, model vs in-situ observations: transport gap << structural gap.
+"""Figure 5: the two models against in-situ observations at HOT and BATS.
 
-Two panels (HOT, BATS), linear y. Per panel: in-situ daily-mean zooplankton biomass (scatter, P5-P95
-clipped), SEAPODYM-LMTL (2D, with transport), SeapoPym (0D, reference params), and dotted total-mean
-lines (obs, LMTL). Message: the two model means nearly coincide (transport gap ~0) while the obs mean
-sits apart (structural gap) -> 0D-2D error << LMTL-obs error, quantified by the printed RMSEs.
+One panel per station. Each shows the daily-mean in-situ zooplankton biomass as a scatter, clipped
+to its 5th and 95th percentiles, the SEAPODYM-LMTL reference, SeapoPym at the reference parameters,
+and the time mean of each series as a dotted line. The RMSE between the two models and the RMSE
+between the reference and the observations are printed, which is what the paper compares.
 
-Reads ONLY committed inputs (turnkey, no SeapoPym-Data, no framework):
-  - data/insitu_zooplankton_obs.csv      daily-mean in-situ HOT/BATS obs, COMMITTED (derived from the
-                                         SeapoPym-Data release; dry mass x 0.4 -> g C m-2)
-  - data/stations.zarr ('zooc')          SEAPODYM-LMTL (2D, with transport)
-  - data/pseudo_observations.zarr        SeapoPym (0D, reference parameters)
-Output : figures/Figure_5.{pdf,png}
+Inputs : data/insitu_zooplankton_obs.csv   in-situ observations, dry mass converted to carbon
+         data/stations.zarr ('zooc')       the SEAPODYM-LMTL reference
+         data/pseudo_observations.zarr     SeapoPym at the reference parameters
+Output : figures/Figure_5.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig05_obs_gap.py
 """
 from __future__ import annotations

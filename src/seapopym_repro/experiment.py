@@ -1,7 +1,8 @@
-"""Twin-experiment core: the seapopym model wiring + the experiment registry, shared by the
-experiment and figure scripts. GA-specific machinery (early stopping, Sobol-init population, the
-GA driver) is gone — the GA was abandoned in favour of pycma CMA-ES; only the optimiser-agnostic
-forcing / observation / functional-group builders live here.
+"""Shared setup of the twin experiments.
+
+Builds the forcing, the observations and the functional groups, and holds the list of experiments,
+so the experiment and figure scripts all start from the same definitions. Nothing here depends on
+which optimizer is used.
 """
 from __future__ import annotations
 

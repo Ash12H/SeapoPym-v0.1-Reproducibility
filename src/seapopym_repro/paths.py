@@ -1,12 +1,12 @@
-"""Canonical paths for the reproducibility deposit — resolved ONCE, no Path(__file__).parents[N]
-scattered across scripts. The repo root is found by walking up to the directory holding
-pyproject.toml, so paths are correct whether a script runs from the repo root or elsewhere.
+"""Paths of the deposit, resolved once for every script.
 
-Layout (see Review/figure-guidelines.md and README):
-    data/         committed INPUTS (small): station forcing, pseudo-observations, coords, real obs
-    products/     frozen experiment outputs the figures consume (committed CSV — the display contract)
-    figures/      produced figures (PDF + PNG, committed)
-    results_raw/  heavy intermediates (GITIGNORED): per-seed parquets, raw logbooks, global zarr
+The repository root is found by walking up to the directory holding pyproject.toml, so the paths are
+correct wherever a script is run from.
+
+    data/         committed inputs: station forcing, synthetic observations, in-situ observations
+    products/     committed experiment outputs, what the figures read
+    figures/      produced figures, PDF and PNG
+    results_raw/  heavy intermediates, not committed
 """
 from __future__ import annotations
 
@@ -29,28 +29,25 @@ FIGURES = ROOT / "figures"
 RESULTS_RAW = ROOT / "results_raw"
 CONFIG = ROOT / "parameters.yaml"
 
-# ---- production cost metric -----------------------------------------------------------------
-# The cost the paper's figures are built on. The twin's optimum is metric-independent (true params
-# give 0 under any metric); the choice rebalances inter-station weighting and per-seed reliability.
-# We use mean-normalised NRMSE (RMSE/mean): same RMSE numerator as the original NRMSE, but the mean
-# denominator removes the std-normalisation that inflated low-variability stations (HOT). The
-# alternative-metric runs (nrmse_std, nmae, ...) are kept as suffixed products for the diagnostic.
+# The cost used in the paper: the NRMSE normalized by the mean of the target series. The optimum of
+# a twin experiment does not depend on this choice, since the reference parameters give a zero cost
+# under any metric, but the normalization sets how stations are weighted against one another. The
+# mean denominator avoids the inflation that the standard deviation produces at HOT, whose biomass
+# varies little. Runs with another metric are kept under a suffixed name.
 PRODUCTION_METRIC = "nrmse_mean"
-CMAES_LAMBDA = 8   # CMA-ES population the ensemble was run at (product filenames are namespaced l{lambda})
+CMAES_LAMBDA = 8   # CMA-ES population of the published ensemble; product names carry it as l{lambda}
 
 
 def metric_tag(metric: str) -> str:
-    """Filename suffix for a cost metric: "" for nrmse_std (byte-stable legacy), "_{metric}" otherwise."""
+    """Filename suffix for a cost metric, empty for nrmse_std and "_{metric}" otherwise."""
     return "" if metric == "nrmse_std" else f"_{metric}"
 
 
 def cmaes_product(kind: str, metric: str | None = None, lam: int | None = None) -> Path:
-    """Path to a frozen CMA-ES product, namespaced by lambda + cost metric.
+    """Path to a CMA-ES product, named after its population size and cost metric.
 
-    kind   : "seed_ensemble" (per (exp, seed) recovery) or "convergence_traces" (best-so-far curves)
-    metric : cost metric (default PRODUCTION_METRIC); use "nrmse_std"/"nmae"/... for the comparators
-    Centralising this here means one constant (PRODUCTION_METRIC) decides which run the figures read,
-    and a metric-suffixed glob can never silently grab the wrong file.
+    kind   : "seed_ensemble" for the per-restart results, "convergence_traces" for the cost curves
+    metric : cost metric, PRODUCTION_METRIC by default
     """
     metric = metric or PRODUCTION_METRIC
     lam = lam or CMAES_LAMBDA

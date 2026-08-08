@@ -1,10 +1,9 @@
-"""Freeze the time-mean global forcing maps — the frozen product behind Figure 1 (and the
-T-NPP cloud of Figure 2).
+"""Reduce the global forcing to the time-mean maps behind Figures 1 and 2.
 
 Reduces the heavy global forcing (data/forcings_global.zarr, ~6 GB, gitignored) to the 2000-2019
 time-mean of the four fields the maps need, on the 1-degree grid (~180x360). The result is a small
-NetCDF committed to products/ so the figures redraw from git alone — the raw forcing is only needed
-to (re)build this product.
+NetCDF committed to products/, so the figures redraw without the raw forcing, which is only needed
+to rebuild this product.
 
 Input  : data/forcings_global.zarr            (gitignored; fetched by download_cmems_global.py)
 Output : products/forcing_global_means.nc      (temperature, npp, zooc, current_norm on (Y, X))

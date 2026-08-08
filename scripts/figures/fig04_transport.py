@@ -1,16 +1,15 @@
-"""Figure 4 — 4-panel transport-impact comparison (SeapoPym 0D vs SEAPODYM-LMTL 2D).
+"""Figure 4: effect of omitting transport, SeapoPym against the SEAPODYM-LMTL reference.
 
-Addresses RC1 (show absolute discrepancies) and RC3 (add a MAPE panel). SeapoPym (0D, no transport,
-reference parameters) vs the SEAPODYM-LMTL operational reference (2D, with transport), as a 2x2 panel:
-  (a) SeapoPym mean biomass
-  (b) RMSE  vs SEAPODYM-LMTL             (absolute error, g m-2)
-  (c) MAPE  vs SEAPODYM-LMTL             (relative error, %)
-  (d) Bias  = SeapoPym - SEAPODYM-LMTL   (signed, diverging)
-Subplot titles are just the panel letter; the colour-bar label carries the full meaning.
+Four panels comparing SeapoPym, run without transport at the reference parameters, to the
+operational SEAPODYM-LMTL product, as time means over 2000-2019:
+  (a) the SeapoPym mean biomass
+  (b) the root mean square error between the two models
+  (c) the mean absolute percentage error, taken relative to the local biomass
+  (d) the bias, the mean signed difference of SeapoPym minus the reference
+Each panel is titled by its letter alone, the colour-bar label carrying the meaning.
 
-Reads ONLY the committed product products/transport_impact_maps.nc (produced by
-scripts/data/freeze_transport_maps.py) — no heavy global zarr needed at figure time.
-Output : figures/Figure_4.{pdf,png}
+Input  : products/transport_impact_maps.nc, frozen by scripts/data/freeze_transport_maps.py
+Output : figures/Figure_4.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig04_transport.py
 """
 from __future__ import annotations

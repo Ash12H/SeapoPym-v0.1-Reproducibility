@@ -1,18 +1,18 @@
-"""rehearsal/gen_pseudo_observations.py — twin-experiment pseudo-observations, generated with
-the IMPLICIT biomass solver.
+"""Generate the synthetic observations the twin experiments fit.
 
-Mirrors notebooks/04_twin_experiments/01_generate_pseudo_observations.ipynb but runs SeapoPym
-with `biomass_solver="implicit"`. The twin experiment is self-referential: the optimizer fits with
-the implicit solver, so its target (pseudo-obs) MUST be produced with the same solver — otherwise
-an NRMSE floor (~0.02-0.036) contaminates recovery.
+Runs SeapoPym with the reference parameters over the full 1998-2019 forcing, starting from zero
+biomass, and keeps the 2000-2019 slice as the target. The run uses the implicit biomass solver, the
+same one the optimizer uses, so that an exact recovery stays possible. A target produced with the
+other solver would leave a residual cost floor that no parameter set could cross.
 
-The reference run is a cold-start integration over the full 1998-2019 forcing; its 2000-2019 slice
-is the target. Every candidate later runs its own cold-start spin-up (experiment.build_forcing), so
-no frozen initial state is exported: the reference parameters reproduce this target at every station.
+Each candidate later runs its own spin-up over the same window, so no initial state is exported.
 
-  data/pseudo_observations.zarr  (reference biomass at the 6 stations, analysis window)
+The result is committed as data/pseudo_observations.zarr. Rerun this script only after changing the
+reference parameters in parameters.yaml, and rerun the twin experiments afterwards.
 
-Run: .venv/bin/python rehearsal/gen_pseudo_observations.py
+Inputs : data/stations.zarr, parameters.yaml
+Output : data/pseudo_observations.zarr   (reference biomass at the six stations)
+Run    : .venv/bin/python scripts/data/gen_pseudo_observations.py
 """
 
 from datetime import datetime, timedelta

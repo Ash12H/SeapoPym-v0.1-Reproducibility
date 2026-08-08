@@ -1,25 +1,25 @@
-"""Seeded CMA-ES ensemble for the twin experiments (Sect. 2.4 and 3.3 of the paper).
+"""Run the twin experiments: recover the five parameters from synthetic observations.
 
-Runs a multi-start CMA-ES at each station and on the joint MERGED experiment, then characterises
-convergence and parameter identifiability from the distribution of the restarts. The search is
-driven by the framework optimizer `seapopym_optimization.algorithm.CMAES`, which wraps pycma
-(Hansen's reference implementation) behind the framework's pluggable optimizer interface.
+Runs a multi-start CMA-ES at each station and on the joint MERGED experiment, and reports both the
+cost reached and the parameters recovered. The search is driven by the framework optimizer
+seapopym_optimization.algorithm.CMAES, which wraps pycma.
 
-Published configuration (the script defaults): population lambda = int(4 + 3*ln(5)) = 8, twenty
-random restarts per experiment (seeds 0..19), cost = mean station NRMSE normalized by the mean of
-the target series, implicit biomass solver. Termination uses pycma's standard criteria (tolx 1e-4,
-tolfun, conditioncov); maxiter = --ngen is only a backstop and must not bind, which `cap_hit` and
-the logged stop reason verify. Read the results on PARAMETER RECOVERY against the reference, not on
-the NRMSE: a low NRMSE at a warm station is equifinality, not recovery.
+The script defaults are the published configuration: a population of int(4 + 3*ln(5)) = 8, twenty
+random restarts per experiment (seeds 0 to 19), the implicit biomass solver, and a cost equal to the
+mean station NRMSE normalized by the mean of the target series. The search stops on pycma's standard
+criteria, and the iteration cap set by --ngen is only a backstop, which the cap_hit column and the
+logged stop reason confirm was never reached.
 
-Resumable per seed: each restart writes its full trajectory to a lambda- and metric-namespaced
-logbook, and a rerun reuses every seed whose logbook already exists, so a crash costs at most the
-in-flight seed.
+The parameters recovered, not the cost, are what the experiment measures. A low cost at a warm
+station reflects equifinality rather than recovery.
+
+Each restart writes its full trajectory to its own logbook and a rerun reuses the restarts already
+computed, so an interruption costs at most the restart in flight.
 
 Inputs : data/pseudo_observations.zarr, data/stations.zarr, parameters.yaml
-Outputs: products/cmaes_seed_ensemble_l8_nrmse_mean.csv        per (experiment, seed) result
+Outputs: products/cmaes_seed_ensemble_l8_nrmse_mean.csv        one row per experiment and restart
          products/cmaes_convergence_traces_l8_nrmse_mean.csv   best-so-far cost per evaluation
-         results_raw/cmaes/ (gitignored)                       per-seed parquet trajectories
+         results_raw/cmaes/                                    per-restart trajectories
 Run    : .venv/bin/python scripts/experiments/run_cmaes_seed_ensemble.py
 """
 
@@ -91,7 +91,7 @@ def run_seed(seed, cost, evalstrat, lam, ngen):
 
 
 def best_of_logbook(out):
-    """(best NRMSE, best params, stop_gen) from an existing per-seed logbook — for resume."""
+    """Read the best cost, the best parameters and the last generation from an existing logbook."""
     df = pd.read_parquet(out)
     wf = df[("Weighted_fitness", "Weighted_fitness")]
     b = df.loc[wf.idxmax(), "Parametre"].to_dict()
@@ -99,14 +99,15 @@ def best_of_logbook(out):
 
 
 def build_convergence_traces(lam, experiments, mtag="", ndown=120):
-    """Freeze the committed convergence PRODUCT from the per-seed logbooks (the display contract).
+    """Build the convergence-traces product from the per-restart logbooks.
 
-    For every (experiment, seed) parquet: best-so-far cost per generation, mapped to model
-    evaluations = (gen+1)*lam, then log-spaced-downsampled to <= `ndown` points (the figure is
-    log-log, so this is visually lossless) — small enough to commit as CSV while the heavy parquets
-    stay gitignored. `mtag` namespaces by metric ("" for the default nrmse_std). Output
-    (cols: experiment, seed, evaluations, best_nrmse — the column name stays best_nrmse for any metric):
-        cmaes/cmaes_convergence_traces_l{lam}{mtag}.csv
+    For each restart, takes the best-so-far cost per generation, converts generations to model
+    evaluations as (generation + 1) * lam, and keeps at most `ndown` log-spaced points. The figure
+    has a logarithmic x axis, so the subsampling is not visible, and the result is small enough to
+    commit while the full trajectories stay out of the repository.
+
+    Columns: experiment, seed, evaluations, best_nrmse, the last one holding the cost whatever the
+    metric. Written to products/cmaes_convergence_traces_l{lam}{mtag}.csv.
     """
     wf = ("Weighted_fitness", "Weighted_fitness")
     rows = []
@@ -232,7 +233,7 @@ def main():
     print(g.to_string(float_format=lambda x: f"{x:.4f}"), flush=True)
     total_cap = int(df["cap_hit"].sum())
     print(f"\nseeds hitting NGEN cap ({NGEN}): {total_cap}/{len(df)} "
-          + ("(OK — convergence governs)" if total_cap == 0 else "(some capped → raise --ngen)"), flush=True)
+          + ("(none, convergence governs)" if total_cap == 0 else "(some capped → raise --ngen)"), flush=True)
     build_convergence_traces(lam, experiments, mtag)         # freeze the committed convergence product
 
 

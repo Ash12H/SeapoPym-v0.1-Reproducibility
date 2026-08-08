@@ -1,13 +1,13 @@
-"""Figure 2 (+ Table 2) — environmental envelope (T vs NPP) with the six stations.
+"""Figure 2: the six stations placed in the global temperature and production space.
 
-Each station's mean temperature and NPP (with IQR) placed within the global distribution of ocean
-grid cells (2000-2019 time means). Prints Table 2 (per-station mean + IQR).
+Each station is drawn at its mean temperature and mean NPP, with bars spanning its interquartile
+range, over a two-dimensional histogram of the ocean grid cells binned by their 2000-2019 means. The
+per-station means and ranges are also printed to stdout. Station colours and markers come from
+figstyle, so they match every other figure.
 
-Reads ONLY committed inputs (turnkey, no raw global forcing):
-  - products/forcing_global_means.nc   global per-pixel time-mean T + NPP (the cloud)
-  - data/stations.zarr                 per-station T + NPP time series (the per-station mean + IQR)
-Station colour + marker come from figstyle (same identity as every other figure).
-Output : figures/Figure_2.{pdf,png}
+Inputs : products/forcing_global_means.nc   the grid-cell distribution
+         data/stations.zarr                 the per-station series
+Output : figures/Figure_2.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig02_stations_distribution.py
 """
 from __future__ import annotations

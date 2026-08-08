@@ -1,12 +1,12 @@
-"""Figure 1 — global context maps (2000-2019 time means).
+"""Figure 1: global maps of the forcing and the reference biomass, averaged over 2000-2019.
 
-Four-panel global map: (a) mean zooplankton biomass (SEAPODYM-LMTL reference), (b) mean vertically
-integrated NPP, (c) mean epipelagic temperature, (d) mean current norm sqrt(U^2 + V^2). Subplot titles
-are just the panel letter; the colour-bar label carries the full meaning.
+Four panels: (a) the mean zooplankton biomass of the SEAPODYM-LMTL reference, (b) the mean
+vertically integrated NPP, (c) the mean epipelagic temperature, (d) the mean current norm
+sqrt(U^2 + V^2). Each panel is titled by its letter alone, the colour-bar label carrying the
+meaning.
 
-Reads ONLY the frozen product (the display contract): products/forcing_global_means.nc, produced by
-scripts/data/freeze_forcing_means.py from the heavy global forcing — no raw forcing needed here.
-Output : figures/Figure_1.{pdf,png}
+Input  : products/forcing_global_means.nc, frozen by scripts/data/freeze_forcing_means.py
+Output : figures/Figure_1.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig01_forcing_maps.py
 """
 from __future__ import annotations

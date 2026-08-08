@@ -1,15 +1,16 @@
-"""Figure 7 — CMA-ES convergence: best-of-ensemble trajectory per experiment.
+"""Figure 7: CMA-ES convergence, the best restart of each twin experiment.
 
-For each experiment (MERGED + 6 stations), the best of the 20 seeded restarts: its best-so-far cost
-vs model evaluations. log x-axis (the descent spans 8 -> ~10^4 evaluations); LINEAR y so the near-zero
-region is not exaggerated. Every experiment converges to the twin global optimum (cost = 0) except
-HOT, whose restarts all floor near 1e-2. Because cost 0 is attainable by construction, this plateau is
-a search that does not reach the optimum, not a structural floor. Lines are layered earliest-to-stop
-(fewest evaluations to termination) in front. The per-seed spread is in the convergence-dispersion figure.
+One line per experiment, the six stations and the joint MERGED case, giving the best-so-far cost
+against the number of model evaluations. The x axis is logarithmic, since the descent spans 8 to
+about 10^4 evaluations, and the y axis is linear so the near-zero region is not exaggerated. Lines
+that terminate earliest are drawn in front.
 
-Reads ONLY the committed convergence-traces product for the production cost (paths.PRODUCTION_METRIC),
-frozen by scripts/experiments/run_cmaes_seed_ensemble.py. Use --metric to render another cost's run.
-Output : figures/Figure_7.{pdf,png}
+Every experiment reaches a cost near zero except HOT, whose restarts all stop near 1e-2. Since the
+target is the model's own output, a zero cost is attainable, so that plateau reflects a search that
+does not reach the optimum rather than a floor of the problem.
+
+Input  : products/cmaes_convergence_traces_l8_nrmse_mean.csv, frozen by run_cmaes_seed_ensemble.py
+Output : figures/Figure_7.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig07_convergence.py [--metric nrmse_mean]
 """
 from __future__ import annotations

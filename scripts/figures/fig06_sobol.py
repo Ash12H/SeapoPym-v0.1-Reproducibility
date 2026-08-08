@@ -1,12 +1,12 @@
-"""Figure 6 — Sobol sensitivity indices for the biomass magnitude and timing.
+"""Figure 6: Sobol sensitivity of the biomass magnitude and seasonal timing.
 
-Two metric rows x five parameter columns; per panel, first-order S1 and total-order ST indices (with
-95% bootstrap CIs) across the six stations (cold -> warm). Final metric choice: log10(mean) (heavy-
-tail-corrected magnitude) and argmax (seasonal timing). All six computed metrics live in the product.
+Two rows of descriptors by five columns of parameters. Each panel gives the first-order index S1 and
+the total-order index ST at the six stations, ordered from cold to warm, with 95 % bootstrap
+confidence intervals. The magnitude is taken as the base-10 logarithm of the mean biomass and the
+timing as the day of year of the maximum.
 
-Reads ONLY products/sobol_indices.csv (frozen by scripts/experiments/freeze_sobol_indices.py) — no
-raw Sobol parquet, no SALib at figure time.
-Output : figures/Figure_6.{pdf,png}
+Input  : products/sobol_indices.csv, frozen by scripts/experiments/freeze_sobol_indices.py
+Output : figures/Figure_6.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig06_sobol.py
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ for r, metric in enumerate(CHOSEN_METRICS):
         ax.grid(True, axis="y", alpha=0.25)
         ax.label_outer()
 axes[0][0].set_ylim(-0.05, 1.05)
-# legend in the (row 1, col 3) panel — empty there (recruitment params don't drive magnitude)
+# legend in the (row 1, col 3) panel, which is empty since recruitment does not drive the magnitude
 axes[0][2].legend(loc="center", fontsize=8, frameon=True)
 fig.tight_layout()
 fs.save(fig, "Figure_6", subdir=None)

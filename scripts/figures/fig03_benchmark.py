@@ -1,12 +1,11 @@
-"""Figure 3 — theoretical benchmark: convergence to the analytical asymptote B = R / lambda.
+"""Figure 3: convergence of the biomass to its analytical steady state B = R / lambda.
 
-Numerical convergence of the SeapoPym biomass to the steady state B = R / lambda(T) (recruitment
-R = E * NPP) under constant forcing, at four temperatures (0/10/20/30 C), NPP = 300 mg C m-2 d-1.
-Line COLOUR = temperature; DASHED line = analytical asymptote; x axis = elapsed days (log).
+Simulated biomass under constant forcing at four temperatures (0, 10, 20 and 30 C, with NPP held at
+300 mg C m-2 d-1), against the analytical equilibrium. Line colour encodes temperature, the dashed
+lines are the equilibria, and both axes are logarithmic.
 
-Reads ONLY the committed product products/benchmark_convergence.csv (produced by
-scripts/experiments/run_benchmark.py) — no framework needed at figure time.
-Output : figures/Figure_3.{pdf,png}
+Input  : products/benchmark_convergence.csv, frozen by scripts/experiments/run_benchmark.py
+Output : figures/Figure_3.pdf and .png
 Run    : .venv/bin/python scripts/figures/fig03_benchmark.py
 """
 from __future__ import annotations

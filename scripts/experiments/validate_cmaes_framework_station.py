@@ -1,9 +1,9 @@
-"""Validation: run the framework CMAES on ONE real station / ONE seed.
+"""Run one station and one restart of the twin experiment, as a check.
 
-Mirrors run_cmaes_seed_ensemble.run_experiment (same forcing, pseudo-observations, functional groups,
-cost function, Dask evaluation) but drives the search through the new framework optimizer
-seapopym_optimization.algorithm.CMAES instead of the inline pycma loop. Confirms that the first-class
-CMAES recovers a clean station end-to-end on real SeapoPym data, producing a valid Logbook.
+Reproduces a single (station, restart) pair of run_cmaes_seed_ensemble.py, with the same forcing,
+synthetic observations, functional groups and cost function, and prints the recovered parameters
+next to their reference values. Useful to check an installation, or to inspect one restart without
+running the full ensemble.
 
 Run: .venv/bin/python scripts/experiments/validate_cmaes_framework_station.py [STATION] [SEED]
 """

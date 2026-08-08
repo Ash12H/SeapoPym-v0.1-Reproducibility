@@ -1,19 +1,18 @@
-"""figstyle — single source of truth for the paper's figure identity.
+"""Shared style for every figure of the paper.
 
-Every figure script imports this so fonts, sizes, colours, markers and the per-station identity are
-IDENTICAL across the whole paper. The Copernicus / GMD rules are documented in
-Review/figure-guidelines.md; the hard ones are enforced here (one sans-serif family, embedded fonts,
->= 8 cm width, 300 dpi, colour-blind-safe AND grayscale-distinguishable via marker shape).
+Every figure script imports this module, so fonts, sizes, colours and markers stay the same across
+the paper. It enforces the Copernicus requirements that can be enforced in code: a single sans-serif
+family with embedded fonts, a width of at least 8 cm, 300 dpi, and a palette that survives both
+grayscale printing and colour-vision deficiency.
 
-Station identity (FIXED everywhere): each experiment has ONE colour and ONE marker, never reused for
-another station and never changed between figures. Colour encodes sea-surface temperature (cold blue
--> warm red); MERGED is the neutral joint reference (black star). The shape carries the same ranking,
-so a figure stays readable in grayscale and under colour-vision deficiency.
+Each station keeps one colour and one marker throughout. The colour encodes temperature, from cold
+blue to warm red, and MERGED is a black star. The marker shape follows the same ranking, so a figure
+stays readable without colour.
 
-    from seapopym_repro import figstyle as fs   # applies the house style on import
-    fs.scatter(ax, x, y, "HOT")                  # HOT's fixed marker + colour + size
-    handles = fs.legend_handles(exps)            # one entry per station, canonical order
-    fs.save(fig, "cmaes_convergence")            # writes <stem>.pdf (vector) + <stem>.png (300 dpi)
+    from seapopym_repro import figstyle as fs   # applies the style on import
+    fs.scatter(ax, x, y, "HOT")                 # the marker, colour and size of HOT
+    handles = fs.legend_handles(exps)           # one entry per station, in the usual order
+    fs.save(fig, "Figure_7")                    # writes <stem>.pdf and <stem>.png
 """
 from __future__ import annotations
 

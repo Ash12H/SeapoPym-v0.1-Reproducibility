@@ -1,18 +1,19 @@
-"""rehearsal/run_sobol_convergence.py — adaptive Sobol convergence + production in one.
+"""Entry point of the sensitivity analysis: find the sample size that converges, and publish it.
 
-Runs the Sobol evaluation at an increasing sequence of sample sizes N, and after EACH N
-checks the mechanical convergence criterion (Sarrazin et al. 2016) on the two reported
-descriptors (log10 mean, argmax). It STOPS at the first N that converges — so it never runs a needlessly large N —
-and PROMOTES that point to the production Figure 6. Two birds, one stone: the converged
-convergence point IS the production sensitivity analysis (no separate 1e6 run).
+Calls run_sobol_production.py at increasing sample sizes N and, after each one, applies the
+convergence criterion of Sarrazin et al. (2016) to the two descriptors the paper reports, the
+base-10 logarithm of the mean biomass and the day of year of the maximum. The first size that
+satisfies the criterion stops the sequence and becomes the published analysis, so no larger sample
+is run and no separate production run is needed.
 
-Each N is evaluated by run_sobol_production.py into rehearsal/sobol/conv/N<N>/ and is
-RESUMABLE, so interrupting/re-running is safe and already-computed points are skipped.
+Each size is computed and stored under its own directory, and is resumable, so an interrupted run
+resumes and skips the sizes already computed.
 
-Run:
-    .venv/bin/python rehearsal/run_sobol_convergence.py                  # CI/stab = 0.05
-    .venv/bin/python rehearsal/run_sobol_convergence.py --ci 0.05 --stab 0.05 --workers 8
-    .venv/bin/python rehearsal/run_sobol_convergence.py --n-list 256,512,1024,2048,4096,8192,16384,32768
+Inputs : data/stations.zarr, parameters.yaml
+Output : products/sobol_indices.csv, the table Figure 6 reads
+Run    : .venv/bin/python scripts/experiments/run_sobol_convergence.py
+         .venv/bin/python scripts/experiments/run_sobol_convergence.py --ci 0.05 --stab 0.05 --workers 8
+         .venv/bin/python scripts/experiments/run_sobol_convergence.py --n-list 256,512,1024,2048,4096,8192
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from fig06b_convergence import CONV, convergence_frame, load_tables
 HERE = Path(__file__).resolve().parent
 RUNNER = HERE / "run_sobol_production.py"
 FREEZE = HERE / "freeze_sobol_indices.py"             # raw run -> products/sobol_indices.csv
-FIG6 = HERE.parent / "figures" / "fig06_sobol.py"     # the display (now in scripts/figures/)
+FIG6 = HERE.parent / "figures" / "fig06_sobol.py"
 FIG6B = HERE / "fig06b_convergence.py"
 
 
@@ -59,8 +60,8 @@ def main():
         print(conv.to_string(index=False, float_format=lambda x: f"{x:.4f}"), flush=True)
         if len(row) and bool(row.iloc[0].converged):
             chosen = n
-            print(f"\n>>> CONVERGED at N={n:,} ({int(row.iloc[0].total_sims):,} simulations). "
-                  f"Stopping — no larger N needed.", flush=True)
+            print(f"\nConverged at N={n:,} ({int(row.iloc[0].total_sims):,} simulations). "
+                  f"Stopping, no larger N needed.", flush=True)
             break
         print(f"\n... N={n:,} not yet converged, continuing to next N.", flush=True)
 
@@ -68,12 +69,12 @@ def main():
     subprocess.run([sys.executable, str(FIG6B), "--ci", str(args.ci), "--stab", str(args.stab)], check=False)
 
     if chosen is None:
-        print("\nNOT converged within the provided --n-list. Extend it and re-run "
-              "(already-computed points are reused).", flush=True)
+        print("\nNot converged within the provided --n-list. Extend it and re-run, "
+              "the sizes already computed are reused.", flush=True)
         return
 
-    # PROMOTE the converged point: freeze its indices -> products/sobol_indices.csv, then plot Figure 6
-    print(f"\n=================== promoting N={chosen:,} to production Figure 6 ===================", flush=True)
+    # Publish the converged point: freeze its indices, then draw Figure 6.
+    print(f"\n=================== promoting N={chosen:,} to Figure 6 ===================", flush=True)
     subprocess.run([sys.executable, str(FREEZE), "--subdir", f"conv/N{chosen}"], check=True)
     subprocess.run([sys.executable, str(FIG6)], check=True)
     (CONV / "CHOSEN.json").write_text(json.dumps({
@@ -82,7 +83,7 @@ def main():
         "figure": "figures/Figure_6.{pdf,png}",
         "indices_table": "products/sobol_indices.csv",
     }, indent=2))
-    print(f"\nPRODUCTION N={chosen:,} -> products/sobol_indices.csv + figures/Figure_6.{{pdf,png}}", flush=True)
+    print(f"\nPublished N={chosen:,} -> products/sobol_indices.csv and figures/Figure_6.{{pdf,png}}", flush=True)
     print(f"Pointer written: {CONV / 'CHOSEN.json'}", flush=True)
 
 

@@ -1,19 +1,17 @@
-"""Run the global SeapoPym 0D simulation — the no-transport prediction behind Figure 4.
+"""Run the global SeapoPym simulation behind Figure 4.
 
 Runs SeapoPym at 1° resolution with the reference parameters of Table 1, on the temperature
 and NPP forcings of data/forcings_global.zarr, over the full forcing window. The first two years
 are a spin-up and are discarded: only the analysis period (2000-01-01 .. end_date) is written.
 
-This is the SeapoPym 0D ("no transport") side of the transport-impact comparison; it is compared
-against the SEAPODYM-LMTL 2D operational reference (the `zooc` field of forcings_global.zarr) in
-scripts/data/freeze_transport_maps.py / scripts/figures/fig04_transport.py.
+This is the transport-free side of the comparison against the SEAPODYM-LMTL operational reference
+(the `zooc` field of forcings_global.zarr), which freeze_transport_maps.py reduces to the maps of
+Figure 4.
 
-Faithful reconstruction of the (deleted) notebook 02_global_simulation/02_run_global_simulation.ipynb:
-  - NoTransportModel / NoTransportConfiguration, single zooplankton functional group
-  - KernelParameter(compute_initial_conditions=True) — model computes its own initial state; the
-    default 'explicit' biomass solver is used (the notebook set no biomass_solver flag)
-  - reference parameters + dates come from parameters.yaml (model_parameters.reference / global_simulation)
-  - the full forcing period is loaded and simulated; only T in [analysis_start, end_date] is saved
+The model runs as a single zooplankton functional group and computes its own initial state. It uses
+the explicit biomass solver, whose equilibrium is the same as the implicit one; only the approach
+time differs, and the two-year spin-up absorbs that difference. Reference parameters and dates come
+from parameters.yaml.
 
 Inputs : data/forcings_global.zarr (temperature, npp), parameters.yaml
 Output : data/biomass_global.zarr ('biomass', analysis period only)
@@ -54,7 +52,7 @@ def main() -> None:
     parser.add_argument(
         "--timing",
         action="store_true",
-        help="Timing test: run and compute biomass but do NOT write biomass_global.zarr.",
+        help="Time the run without writing biomass_global.zarr.",
     )
     args = parser.parse_args()
 
@@ -128,7 +126,7 @@ def main() -> None:
         client.close()
         n_full = 8035
         per = (_time.time() - _t0) / biomass.sizes["T"]
-        print(f"TIMING ONLY (not saved). Extrapolated full 22-yr ~ {per * n_full / 60:.1f} min", flush=True)
+        print(f"Timing only, nothing saved. Full 22 years extrapolates to ~{per * n_full / 60:.1f} min", flush=True)
         return
 
     output_path = paths.DATA / "biomass_global.zarr"

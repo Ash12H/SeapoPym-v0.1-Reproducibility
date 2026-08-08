@@ -1,4 +1,4 @@
-"""Freeze the transport-impact comparison maps — the frozen product behind Figure 4.
+"""Reduce the two global simulations to the comparison maps behind Figure 4.
 
 Compares SeapoPym (0D, no transport; its global run = data/biomass_global.zarr) to the SEAPODYM-LMTL
 operational reference (2D, with transport; the `zooc` field of data/forcings_global.zarr) over the

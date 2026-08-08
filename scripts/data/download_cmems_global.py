@@ -1,43 +1,21 @@
-"""download_cmems_global.py — Self-contained CMEMS-LMTL global download.
+"""Download the global CMEMS forcing.
 
-Downloads the 5 variables used by this paper from the Copernicus Marine LMTL
-product, regrids from native 1/12° to 1° (bin-averaging), and writes the
-canonical Zarr `data/forcings_global.zarr` directly.
+Downloads five variables from the Copernicus Marine LMTL product (DOI 10.48670/moi-00020), regrids
+them from the native 1/12 degree to 1 degree by bin-averaging, and writes data/forcings_global.zarr.
+download_cmems_stations.py applies the same regridding, and both give the same values at the six
+station coordinates.
 
-This is the heavy companion of `scripts/download_cmems_stations.py`. The two
-scripts share the same regridding algorithm; running this one on the full
-globe gives results that are bit-for-bit identical to the stations script at
-the six station coordinates (verified on January 2010).
+Variables: temperature, U and V from the sub-dataset cmems_mod_glo_bgc_my_0.083deg-lmtl-Fphy_P1D-i
+at depth index 1 (epipelagic layer), npp and zooc from cmems_mod_glo_bgc_my_0.083deg-lmtl_P1D-i.
 
-Source DOI (CMEMS LMTL product): 10.48670/moi-00020
+The download is resumable: it appends month by month and skips months already present. Expect a few
+hours and about 6 GB on disk. Copernicus Marine credentials are required, set either by running
+`copernicusmarine login` once or through the COPERNICUSMARINE_SERVICE_USERNAME and
+COPERNICUSMARINE_SERVICE_PASSWORD environment variables.
 
-Variables and provenance:
-    - temperature: sub-dataset `cmems_mod_glo_bgc_my_0.083deg-lmtl-Fphy_P1D-i`,
-      variable `T`, depth index 1 (epipelagic). Renamed `temperature`.
-    - U, V: same sub-dataset, depth index 1 (epipelagic, for current-norm map).
-    - npp, zooc: sub-dataset `cmems_mod_glo_bgc_my_0.083deg-lmtl_P1D-i`.
-
-Resumable: the script appends to `data/forcings_global.zarr` month by month
-and skips months that are already present.
-
-Authentication
---------------
-Requires Copernicus Marine credentials (see README.md, section Quick start).
-
-Output
-------
-    data/forcings_global.zarr — Dataset with dims (T=8035, Y=170, X=360),
-    variables temperature, U, V, npp, zooc. Approximate size on disk: ~6 GB.
-
-Runtime
--------
-A few hours on a residential connection; bandwidth-bound rather than
-CPU-bound. Allow a few minutes per month with a fast link.
-
-Usage
------
-    python scripts/download_cmems_global.py
-    python scripts/download_cmems_global.py --start-date 2010-01-01 --end-date 2010-01-31
+Output : data/forcings_global.zarr   (temperature, U, V, npp, zooc on time, Y, X)
+Run    : .venv/bin/python scripts/data/download_cmems_global.py
+         .venv/bin/python scripts/data/download_cmems_global.py --start-date 2010-01-01 --end-date 2010-01-31
 """
 
 from __future__ import annotations
@@ -216,7 +194,7 @@ def _download_one_month(year: int, month: int) -> tuple[xr.Dataset, int]:
 
 
 # =============================================================================
-# Zarr I/O — resumable append
+# Zarr writing, resumable by appending
 # =============================================================================
 
 
@@ -262,7 +240,7 @@ def main() -> None:
 
     last = _last_date(args.output)
     if last is not None:
-        log.info("Resuming — last date in zarr: %s", last.strftime("%Y-%m-%d"))
+        log.info("Resuming, last date in zarr: %s", last.strftime("%Y-%m-%d"))
 
     start_ts = pd.Timestamp(args.start_date)
     end_ts = pd.Timestamp(args.end_date)
@@ -272,11 +250,11 @@ def main() -> None:
     for idx, m in enumerate(months, start=1):
         month_end = pd.Timestamp(m.year, m.month, calendar.monthrange(m.year, m.month)[1])
         if last is not None and month_end <= last:
-            log.info("[%d/%d] %s — skipped (already in zarr)", idx, total, m.strftime("%Y-%m"))
+            log.info("[%d/%d] %s skipped, already in zarr", idx, total, m.strftime("%Y-%m"))
             continue
         ds, n_days = _download_one_month(m.year, m.month)
         _write(ds, args.output)
-        log.info("[%d/%d] %s — wrote %d days", idx, total, m.strftime("%Y-%m"), n_days)
+        log.info("[%d/%d] %s wrote %d days", idx, total, m.strftime("%Y-%m"), n_days)
 
     with xr.open_zarr(args.output) as ds:
         size_gb = sum(f.stat().st_size for f in args.output.rglob("*") if f.is_file()) / 1e9

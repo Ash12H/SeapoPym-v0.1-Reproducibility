@@ -1,25 +1,24 @@
-"""rehearsal/fig06b_convergence.py — Sobol convergence study (mechanical N selection).
+"""Decide which Sobol sample size is large enough.
 
-Standard GSA convergence criterion (Sarrazin, Pianosi & Wagener, 2016, Environmental
-Modelling & Software): pick the smallest sufficient N **mechanically** (no eyeballing).
+Applies the convergence criterion of Sarrazin, Pianosi and Wagener (2016, Environmental Modelling
+and Software). The chosen sample size is the smallest N such that, across every reported descriptor,
+station and parameter, both conditions hold:
 
-    chosen N* = smallest N such that, across the REPORTED metrics x station x param:
-        (a) max bootstrap 95% CI half-width of S1 and ST   <= CI_THRESHOLD   (default 0.05)
-        (b) max |index(N) - index(previous N)|  (S1 and ST) <= STAB_THRESHOLD (default 0.05)
+    (a) the bootstrap 95 % confidence half-width of S1 and ST is at most CI_THRESHOLD  (default 0.05)
+    (b) the change in S1 and ST from the previous N is at most STAB_THRESHOLD          (default 0.05)
 
-The decision is taken on the two descriptors the paper actually REPORTS in Figure 6:
-log10(mean) for the biomass magnitude and argmax (day of year of the maximum) for the
-seasonal timing. The magnitude uses log10 because the raw mean/variance are heavy-tailed
-(B~R/lambda) and their Sobol indices barely converge even at large N. The other computed
-metrics (mean, variance, CV, and circular, the cyclic treatment of argmax) are kept for
-context but do NOT gate N.
+The decision rests on the two descriptors the paper reports, the base-10 logarithm of the mean
+biomass for the magnitude and the day of year of the maximum for the seasonal timing. The magnitude
+is taken in logarithm because the biomass is heavy-tailed, B being proportional to 1 / lambda, and
+the indices of the raw mean converge slowly. The other descriptors computed along the way, the raw
+mean and variance, the coefficient of variation and the circular treatment of the timing, are
+reported for context and do not enter the decision.
 
-Importable: `load_tables()`, `convergence_frame()`, `indices_table()` are reused by the
-adaptive orchestrator run_sobol_convergence.py.
+run_sobol_convergence.py imports load_tables, convergence_frame and indices_table from here.
 
-Outputs (rehearsal/sobol/conv/):
-    convergence_metrics.csv      N, total_sims, ci_reported, ci_context, delta_reported, converged
-    Figure_6b_convergence.png    ci (reported & context) and delta vs total simulations, with threshold
+Inputs : results_raw/sobol/conv/N<N>/ for each evaluated sample size
+Output : convergence_metrics.csv and a diagnostic plot, alongside the evaluated sizes
+Run    : .venv/bin/python scripts/experiments/fig06b_convergence.py
 """
 
 from __future__ import annotations
@@ -147,17 +146,17 @@ def main():
         print(f"\nMECHANICAL DECISION (CI<={args.ci}, stab<={args.stab}): "
               f"N* = {int(r.N):,} -> {int(r.total_sims):,} simulations")
     else:
-        print(f"\nNOT YET CONVERGED (CI<={args.ci}, stab<={args.stab}) — extend the sweep.")
+        print(f"\nNot converged yet (CI<={args.ci}, stab<={args.stab}). Extend the sweep.")
 
     fig, ax = plt.subplots(figsize=(8, 5), dpi=200)
-    ax.plot(conv.total_sims, conv.ci_reported, "o-", color="#d62728", label="max CI half-width — reported (log10 mean, argmax)")
-    ax.plot(conv.total_sims, conv.ci_context, "^:", color="gray", label="max CI half-width — context (not gated)")
-    ax.plot(conv.total_sims, conv.delta_reported, "s--", color="#1f77b4", label="max |Δindex| vs previous N — reported")
+    ax.plot(conv.total_sims, conv.ci_reported, "o-", color="#d62728", label="max CI half-width, reported (log10 mean, argmax)")
+    ax.plot(conv.total_sims, conv.ci_context, "^:", color="gray", label="max CI half-width, other descriptors")
+    ax.plot(conv.total_sims, conv.delta_reported, "s--", color="#1f77b4", label="max |Δindex| vs previous N, reported")
     ax.axhline(args.ci, color="green", ls=":", lw=1.3, label=f"threshold = {args.ci}")
     ax.set_xscale("log")
     ax.set_xlabel("total simulations  (N × (D+2))")
     ax.set_ylabel("convergence metric")
-    ax.set_title("Sobol convergence (Sarrazin et al. 2016) — decision on reported descriptors", fontweight="bold", fontsize=11)
+    ax.set_title("Sobol convergence (Sarrazin et al. 2016), decided on the reported descriptors", fontweight="bold", fontsize=11)
     if len(chosen):
         xs = int(chosen.iloc[0].total_sims)
         ax.axvline(xs, color="green", lw=1.4, alpha=0.8)

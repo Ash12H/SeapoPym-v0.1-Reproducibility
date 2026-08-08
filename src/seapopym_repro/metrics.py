@@ -1,14 +1,13 @@
-"""Cost-function comparators for the metric diagnostic (Figure 7 follow-up).
+"""Cost comparators available to the twin experiments.
 
-Same signature as the framework's MetricProtocol -- (prediction, observation) -> float -- so they can
-be used both to re-score the best members under alternative metrics and, optionally, as the objective
-of a re-optimisation. The framework ships nrmse_std + rmse; we add the mean-normalised NRMSE (relative
-error, balanced across stations) and MAE.
+Each takes a prediction and an observation and returns a float, the signature the framework expects,
+so any of them can serve as the objective of an optimization or re-score an existing run. The
+framework provides the NRMSE normalized by the standard deviation and the plain RMSE; this module
+adds the NRMSE normalized by the mean, used in the paper, and the MAE.
 
-Why nrmse_mean: std-normalisation (the current cost) divides by std(obs), which inflates low-
-variability stations (HOT: std~0.06 turns a 0.004 RMSE into a 0.07 NRMSE). Normalising by the mean
-gives a relative error that weights stations by magnitude, not variability. In a noise-free twin
-experiment a log transform adds no value (the true optimum is exactly 0), so it is intentionally absent.
+Normalizing by the standard deviation inflates the cost at stations whose biomass varies little: at
+HOT a standard deviation near 0.06 turns an RMSE of 0.004 into an NRMSE of 0.07. Normalizing by the
+mean gives a relative error that weights stations by magnitude instead.
 """
 from __future__ import annotations
 

@@ -1,33 +1,24 @@
-"""run_sobol_production.py — REHEARSAL of the final Sobol sensitivity run.
+"""Evaluate one Sobol sample of the five biological parameters at the six stations.
 
-Isolated dress rehearsal (mirrors rehearsal/run_ga_production.py), separate from the
-notebooks in notebooks/03_sobol_sensitivity/ and from data/sobol_*.parquet (the
-published explicit-solver results). Validates the unified-config Sobol pipeline BEFORE
-touching any official notebook.
+Draws a Saltelli sample of base size N over the parameter bounds of parameters.yaml, runs SeapoPym
+once per parameter set at each station, and records three descriptors of the resulting biomass
+series: its mean, its variance and the day of year of its maximum. freeze_sobol_indices.py then
+turns these into Sobol indices.
 
-What changed vs the published run:
-  - SOLVER     : implicit (semi-implicit IMEX) biomass scheme — unconditionally stable,
-                 so the warm-station high-mortality corner no longer blows up (no NaN).
-  - BOUNDS     : the *unified* GA bounds (parameters.yaml -> model_parameters.bounds),
-                 NOT the wider sobol.bounds. One bounds set for the whole study.
-  - MODEL      : NoTransportSpaceOptimizedLightModel (same class as the GA; faster/lighter
-                 for 1.19 M sims; biomass identical to the full model).
-  - SPIN-UP    : 2-year spin-up baked into the analysis window (parameters.yaml:
-                 sobol.analysis_period.spin_up_start 2004 -> start 2006).
+The runs use the implicit biomass solver, which stays stable over the whole parameter range: the
+explicit scheme diverges in the high-mortality corner at the warm stations. The analysis window
+starts two years after the beginning of the forcing, so every run is scored on a spun-up state.
 
-The runner stores only the raw per-sample (mean, variance, argmax) per station. The robust
-metrics (log10 mean, CV, circular timing) that REPLACE them in Figure 5 are derived
-downstream by the analysis script (experiment/05_sobol_robust_metrics.py) from these.
+Results are written batch by batch, so an interrupted run resumes and skips the batches already
+computed.
 
-RESUMABLE: results are written batch-by-batch to rehearsal/sobol/sobol_results.parquet.
-Re-running after an interruption (Ctrl-C, crash, shutdown) reloads what is already there and
-skips completed batches — exactly the mechanism from notebook 02.
+This script is normally driven by run_sobol_convergence.py, which calls it once per sample size.
 
-Run (usually driven by run_sobol_convergence.py, which calls this once per N):
-    .venv/bin/python scripts/experiments/run_sobol_production.py                 # production N from parameters.yaml
-    .venv/bin/python scripts/experiments/run_sobol_production.py --n 8192         # a specific base N
-    .venv/bin/python scripts/experiments/run_sobol_production.py --limit 200      # quick smoke
-    .venv/bin/python scripts/experiments/run_sobol_production.py --workers 8 --batch-size 2000
+Inputs : data/stations.zarr, parameters.yaml
+Output : results_raw/sobol/<subdir>/sobol_results.parquet, run_meta.json
+Run    : .venv/bin/python scripts/experiments/run_sobol_production.py
+         .venv/bin/python scripts/experiments/run_sobol_production.py --n 8192
+         .venv/bin/python scripts/experiments/run_sobol_production.py --workers 8 --batch-size 2000
 """
 
 from __future__ import annotations
@@ -65,7 +56,7 @@ SEED = 0  # reproducible Saltelli sample
 
 
 def build_forcing_and_grid(period):
-    """Reshape the 6 station time series into a compact (T, Y, X) grid (as in notebook 02)."""
+    """Reshape the six station time series into a compact (T, Y, X) grid."""
     raw = xr.open_zarr(DATA_DIR / "stations.zarr").sel(
         time=slice(period["spin_up_start"], period["end"])
     ).load()
@@ -135,10 +126,10 @@ def main():
     ap.add_argument("--n", type=int, default=None,
                     help="override n_samples_per_dim (base N); total = N*(2D+2) or N*(D+2)")
     ap.add_argument("--out-subdir", default=None,
-                    help="write outputs under rehearsal/sobol/<subdir>/ (e.g. a convergence point)")
+                    help="write outputs under results_raw/sobol/<subdir>/, one per convergence point")
     ap.add_argument("--second-order", action="store_true",
-                    help="compute pairwise S2 (design 2D+2). Default: first-order design D+2 (no S2).")
-    ap.add_argument("--limit", type=int, default=None, help="evaluate only the first N samples (smoke test)")
+                    help="compute pairwise S2 indices, a 2D+2 design; the default D+2 design omits them")
+    ap.add_argument("--limit", type=int, default=None, help="evaluate only the first N samples, to test the setup")
     ap.add_argument("--batch-size", type=int, default=1000)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--memory-limit", default="4GB")
@@ -155,14 +146,14 @@ def main():
     n_samples = args.n if args.n is not None else sobol["n_samples_per_dim"]
     calc_second_order = args.second_order  # default False: only S1/ST are reported (Figure 6)
 
-    # UNIFIED bounds = the GA bounds (not sobol.bounds).
+    # One set of bounds for the whole study, the one the twin experiments search over.
     bounds = [params["model_parameters"]["bounds"][p] for p in names]
 
     samples_path = out_dir / "sobol_samples.parquet"
     results_path = out_dir / "sobol_results.parquet"
     meta_path = out_dir / "run_meta.json"
 
-    # ---- 1. Saltelli sample from the unified GA bounds (regenerated; reproducible seed) ----
+    # ---- 1. Saltelli sample over those bounds, from a fixed seed so the design is reproducible ----
     factor = (2 * len(names) + 2) if calc_second_order else (len(names) + 2)
     expected_total = n_samples * factor
     if samples_path.exists() and len(pd.read_parquet(samples_path)) == expected_total:
@@ -181,7 +172,7 @@ def main():
         print(f"--limit {args.limit}: evaluating only the first {len(samples):,} samples", flush=True)
 
     meta_path.write_text(json.dumps({
-        "solver": SOLVER, "mode": "production", "bounds_source": "model_parameters.bounds (unified GA bounds)",
+        "solver": SOLVER, "mode": "production", "bounds_source": "model_parameters.bounds",
         "names": names, "bounds": {n: b for n, b in zip(names, bounds)}, "metrics": metrics,
         "n_samples_per_dim": n_samples, "calc_second_order": calc_second_order,
         "total_samples": int(expected_total),
